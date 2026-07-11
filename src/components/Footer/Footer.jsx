@@ -15,7 +15,7 @@ function Footer() {
                     
                     {/* Central de Atendimento */}
                     <Col xs={12} md={6}>
-                        <h5 className="text-white mb-3 fs-2 fw-bold">Central de Atendimento</h5>
+                        <h5 className="text-white mb-3 fs-3 fw-bold">Central de Atendimento</h5>
                         <Nav className="flex-column">
                             <Nav.Item className="mb-2">
                                 <Nav.Link href="#" className="p-0 fs-5 text-secondary hover-light">Trocas e Devoluções</Nav.Link>
@@ -31,7 +31,7 @@ function Footer() {
 
                     {/* Redes Sociais */}
                     <Col xs={12} md={6}>
-                        <h5 className="text-white mb-3 fs-2 fw-bold">Siga-nos em nossas redes</h5>
+                        <h5 className="text-white mb-3 fs-3 fw-bold">Siga-nos em nossas redes</h5>
                         <Nav className="flex-column">
                             <Nav.Item className="mb-3">
                                 <Nav.Link href="#" className="p-0 fs-5 text-secondary hover-light d-flex align-items-center">

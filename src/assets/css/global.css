@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
 
+:root {
+  --cinza: #7e7e7e;
+}
+
 * {
   font-family: 'Inter', sans-serif !important;
 }
@@ -14,4 +18,20 @@ body {
 
 .card {
   border-radius: 0px;
+}
+.card-produto {
+  border: 1px solid var(--cinza);
+}
+
+.button-vermais {
+  background-color: #fff;
+  border: solid 1px var(--cinza);
+  color: var(--cinza);
+  transition: 0.5s;
+}
+
+.button-vermais:hover {
+  background-color: var(--cinza);
+  color: #fff;
+  border: solid 1px var(--cinza);
 }

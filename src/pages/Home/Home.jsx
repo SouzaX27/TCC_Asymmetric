@@ -2,6 +2,7 @@
 import { Container, Row, Col } from 'react-bootstrap';
 import { productsMock } from "../../mock/productsMock";
 import ProductCard from '../../components/ProductCard/ProductCard';
+import Button from '../../components/Button/Button'
 import homeVideo from '../../assets/video/video.mp4';
 
 function Home() {
@@ -19,7 +20,6 @@ function Home() {
                     playsInline
                     style={{ width: '60vw', height: 'auto', zIndex: 1 }}
                 >
-                    {/* Se importou o vídeo no topo, use src={homeVideo} */}
                     <source src={homeVideo} type="video/mp4" />
                 </video>
             </section>
@@ -33,6 +33,10 @@ function Home() {
                     ))}
                 </Row>
             </Container>
+
+            <Button className='button-vermais d-block mx-auto mb-5'>
+                <span>Ver Mais</span>
+            </Button>
 
         </div>
     );
