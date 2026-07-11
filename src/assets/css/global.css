@@ -4,6 +4,10 @@
   font-family: 'Inter', sans-serif !important;
 }
 
+body {
+  overflow-x: hidden;
+}
+
 .fw-black {
   font-weight: 900;
 }

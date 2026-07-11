@@ -1,18 +1,21 @@
 import Navbar from '../components/Navbar/Navbar';
+import Footer from '../components/Footer/Footer';
 
-// Ele recebe 'children', que representa qualquer página que entrar aqui dentro
-function Layout({ children }) {
+// 'children' ==== qualquer página que entrar, ou seja, seu conteudo 
+function MainLayout({ children }) {
   return (
     <div>
-      {/* A Navbar fica fixa aqui no topo para sempre */}
+
       <Navbar />
 
-      {/* As páginas (Home, Cart, etc.) vão se encaixar automaticamente aqui embaixo */}
       <main>
         {children}
       </main>
+
+      <Footer />
+
     </div>
   );
 }
 
-export default Layout;
+export default MainLayout;

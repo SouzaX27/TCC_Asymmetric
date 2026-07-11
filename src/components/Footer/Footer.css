@@ -1,0 +1,8 @@
+/* Efeito de transição suave para os links do footer */
+.hover-light {
+    transition: color 0.2s ease-in-out;
+}
+
+.hover-light:hover {
+    color: #ffffff !important; /* Muda de cinza para branco puro no hover */
+}

@@ -1,20 +1,22 @@
+// Importando os componentes de Card da biblioteca
+import { Card } from 'react-bootstrap';
 import './ProductCard.css';
 
-function ProductCard({produto}) {
+function ProductCard({ produto }) {
 
     const formatarPreco = (valor) => {
         return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
     return (
-        <div className="card " style={{width: '100%' }}>
-    <img src={produto.imagem} className="card-img-top" alt={produto.nome}/>
-    <div className="card-body">
-        <p className="card-title fw-bold fs-4">{produto.nome}</p>
-        <p className="card-text fs-4">{formatarPreco(produto.preco)}</p>
-    </div>
-</div>
-
+        <Card className="card-produto" style={{ width: '100%' }} > 
+            <Card.Img variant="top" src={produto.imagem} alt={produto.nome} />
+            
+            <Card.Body className="px-0 mx-3"> 
+                <Card.Title className="fw-bold fs-4 m-0">{produto.nome}</Card.Title>
+                <Card.Text className="fs-4 mt-2">{formatarPreco(produto.preco)}</Card.Text>
+            </Card.Body>
+        </Card>
     );
 };
 
