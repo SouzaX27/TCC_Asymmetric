@@ -1,4 +1,3 @@
-// Importando os componentes de Grid do React-Bootstrap
 import { Container, Row, Col } from 'react-bootstrap';
 import { productsMock } from "../../mock/productsMock";
 import ProductCard from '../../components/ProductCard/ProductCard';

@@ -1,5 +1,6 @@
 // Importando os componentes de Card da biblioteca
 import { Card } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import './ProductCard.css';
 
 function ProductCard({ produto }) {
@@ -9,6 +10,7 @@ function ProductCard({ produto }) {
     };
 
     return (
+        <Link to={`/produto/${produto.id}`} className="text-decoration-none text-dark card-link-container">
         <Card className="card-produto" style={{ width: '100%' }} > 
             <Card.Img variant="top" src={produto.imagem} alt={produto.nome} />
             
@@ -17,6 +19,7 @@ function ProductCard({ produto }) {
                 <Card.Text className="fs-4 mt-2">{formatarPreco(produto.preco)}</Card.Text>
             </Card.Body>
         </Card>
+        </Link>
     );
 };
 
