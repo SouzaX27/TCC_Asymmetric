@@ -1,4 +1,20 @@
 .card-produto {
     border-radius: 0px; 
-    border: 1px solid #7e7e7e;
+    border: 1px solid var(--cinza);
 }
+
+.card-link-container {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+}
+
+.card-produto, .produto-imagem {
+    transition: transform 0.3s ease-in-out;
+}
+
+.card-produto:hover {
+    transform: scale(1.02);
+    border: 1px solid #000;
+}
+

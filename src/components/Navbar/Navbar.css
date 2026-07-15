@@ -3,3 +3,7 @@
     box-shadow: none;
 }
 
+.offcanvas.menu {
+    width: 85vw;
+    max-width: 320px;
+}
