@@ -5,6 +5,9 @@ import Button from '../../components/Button/Button'
 import homeVideo from '../../assets/video/video.mp4';
 
 function Home() {
+
+    const limitProducts = 4;
+
     return (
         <div className="home-page animate-fade-in">
 
@@ -25,17 +28,19 @@ function Home() {
 
             <Container className="mb-5">
                 <Row className="g-4 justify-content-center">
-                    {productsMock.map((item) => (
+                    {productsMock.slice(0, limitProducts).map((item) => (
                         <Col key={item.id} xs={12} md={6} className="d-flex justify-content-center">
                             <ProductCard produto={item} />
                         </Col>
                     ))}
                 </Row>
             </Container>
-
-            <Button className='button-vermais d-block mx-auto mb-5'>
-                <span>Ver Mais</span>
+            
+            <div className="text-center">
+            <Button to="/produtos" className='button-vermais mb-5'>
+                Ver Mais
             </Button>
+            </div>
 
         </div>
     );

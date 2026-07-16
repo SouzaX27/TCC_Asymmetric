@@ -27,4 +27,18 @@ export const productsMock = [
      imagem: "/src/assets/products/camisetaAsymMetricP.png",
      descricao: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum at dignissim eros. Class aptent taciti sociosqu."
     },
+    {
+     id: 5,
+     nome: "Camiseta Dalmatian",
+     preco: 89.99,
+     imagem: "/src/assets/products/camisetaDalmatianB.png",
+     descricao: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum at dignissim eros. Class aptent taciti sociosqu."
+    },
+    {
+     id: 5,
+     nome: "Camiseta Dalmatian",
+     preco: 89.99,
+     imagem: "/src/assets/products/camisetaDalmatianB.png",
+     descricao: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum at dignissim eros. Class aptent taciti sociosqu."
+    },
 ]

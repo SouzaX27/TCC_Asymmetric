@@ -12,6 +12,10 @@ body {
   overflow-x: hidden;
 }
 
+html, body {
+  scroll-behavior: auto !important;
+}
+
 .fw-black {
   font-weight: 900;
 }
@@ -30,8 +34,15 @@ body {
   transition: 0.5s;
 }
 
+
 .button-vermais:hover {
   background-color: var(--cinza);
   color: #fff;
   border: solid 1px var(--cinza);
+}
+
+.button-vermais:active {
+  background-color: #111111 !important; 
+  border-color: #111111 !important;
+  opacity: 0.85;
 }

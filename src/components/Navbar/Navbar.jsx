@@ -31,7 +31,7 @@ function Navbar() {
                         />
                     </button>
 
-                    <Link className="nav-logo m-0 p-0 d-flex justify-content-center align-items-center" to="/home">
+                    <Link className="nav-logo m-0 p-0 d-flex justify-content-center align-items-center" to="/inicio">
                         <img 
                             className='logo'
                             src={logoAsymmetric}

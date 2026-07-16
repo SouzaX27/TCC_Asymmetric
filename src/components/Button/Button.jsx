@@ -1,17 +1,18 @@
 import { Button as BootstrapButton } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import './Button.css';
 
-// Usamos as propriedades (props) para receber o texto (children) e ações (onClick)
-function Button({ children, onClick, className = '', ...props }) {
+function Button({ children, onClick, className = '', to, ...props }) {
     return (
         <BootstrapButton 
-            // Mistura as classes padrão do seu botão com as classes utilitárias que você passar no futuro
-            className={`d-block mx-auto px-5 py-2 mt-5 ${className}`}
+            as={to ? Link : 'button'}
+            to={to}
+            className={`d-inline-block px-5 py-2 ${className}`}
             style={{ 
                 borderRadius: '0px',
             }}
             onClick={onClick}
-            {...props} // Caso precise passar disabled, type, etc.
+            {...props}
         >
             <span className="fw-semibold fs-5">
                 {children}

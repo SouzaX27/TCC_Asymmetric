@@ -7,7 +7,7 @@ import logoIcon from '../../assets/images/logo.svg';
 
 function Footer() {
     return (
-        <footer className="bg-black text-light py-5">
+        <footer className="bg-black text-light mt-4 py-5">
             <Container>
                 
                 <Row className="gy-4 mb-4">
