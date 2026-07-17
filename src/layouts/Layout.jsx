@@ -29,7 +29,6 @@ export function SimpleLayout() {
                 
             </main>
             
-            <Footer />
         </div>
     );
 }

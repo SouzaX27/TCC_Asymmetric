@@ -4,6 +4,7 @@ import { MainLayout, SimpleLayout } from './layouts/Layout';
 
 import Home from './pages/Home/Home';
 import Products from './pages/Products/Products';
+import Contact from './pages/Contact/Contact';
 
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
 
@@ -18,6 +19,7 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/inicio" element={<Home />} />
                     <Route path="/produtos" element={<Products />} />
+                    <Route path="/contato" element={<Contact />} />
                 </Route>
 
                 <Route element={<SimpleLayout />}>

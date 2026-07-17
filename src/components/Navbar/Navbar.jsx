@@ -28,7 +28,7 @@ function Navbar() {
                             src={menuIcon}
                             alt="Menu"
                             className="nav-icon"
-                        />
+                            />
                     </button>
 
                     <Link className="nav-logo m-0 p-0 d-flex justify-content-center align-items-center" to="/inicio">
@@ -37,7 +37,7 @@ function Navbar() {
                             src={logoAsymmetric}
                             alt="ASYMMETRIC"
                             style={{ height: '32px', width: 'auto' }}
-                        />
+                            />
                     </Link>
 
                     <Link className="nav-cart m-0 p-0 d-flex justify-content-end align-items-center" to="/carrinho">
@@ -60,13 +60,13 @@ function Navbar() {
                 <Offcanvas.Body>
                     <ul className="navbar-nav justify-content-end flex-grow-1 pe-3 fs-4">
                         <li className="nav-item">
-                            <a className="nav-link" href="#inicio" onClick={handleClose}>Início</a>
+                            <a className="nav-link" href="/inicio" onClick={handleClose}>Início</a>
                         </li>
                         <li className="nav-item">
-                            <a className="nav-link" href="#produtos" onClick={handleClose}>Produtos</a>
+                            <a className="nav-link" href="/produtos" onClick={handleClose}>Produtos</a>
                         </li>
                         <li className="nav-item">
-                            <a className="nav-link" href="#contato" onClick={handleClose}>Contato</a>
+                            <a className="nav-link" href="/contato" onClick={handleClose}>Contato</a>
                         </li>
                         
                         <li className="nav-item mt-5">
