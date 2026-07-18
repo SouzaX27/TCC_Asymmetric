@@ -46,7 +46,7 @@ html, body {
   border: 1px solid var(--cinza);
 }
 
-.button-vermais, .button-enviar {
+.button-vermais, .button-enviar, .button-1 {
   background-color: var(--cinza);
   border: solid 1px var(--cinza);
   color: #fff;
@@ -54,23 +54,41 @@ html, body {
 }
 
 
-.button-vermais:hover, .button-enviar:hover {
+.button-vermais:hover, .button-enviar:hover, .button-1:hover {
   background-color: #fff;
   color: var(--cinza);
   border: solid 1px var(--cinza);
   letter-spacing: 1px;
 }
 
-.button-vermais:active, .button-enviar:active {
+.button-vermais:active, .button-enviar:active, .button-1:active {
   background-color: #111111 !important; 
   border-color: #111111 !important;
   opacity: 0.85;
 }
 
+.button-2 {
+  background-color: #fff;
+  border: solid 1px var(--cinza);
+  color: var(--cinza);
+  transition: 0.5s;
+}
+
+.button-2:hover {
+  background-color: var(--cinza);
+  color: #fff;
+}
+
+.button-2:focus {
+  background-color: var(--cinza);
+  color: #fff;
+  
+}
+
 .contact-page button[type="submit"]:disabled {
-    background-color: #212529 !important; /* Cor dark do Bootstrap */
+    background-color: #212529 !important;
     border-color: #212529 !important;
     color: #ffffff !important;
-    opacity: 0.7; /* Deixa ele levemente opaco para o usuário ver que está carregando */
-    cursor: not-allowed; /* Muda o ponteiro do mouse para indicar que está travado */
+    opacity: 0.7;
+    cursor: not-allowed;
 }

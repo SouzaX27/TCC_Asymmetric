@@ -5,30 +5,37 @@ import { MainLayout, SimpleLayout } from './layouts/Layout';
 import Home from './pages/Home/Home';
 import Products from './pages/Products/Products';
 import Contact from './pages/Contact/Contact';
+import ProductDetails from './pages/ProductDetails/ProductDetails';
+import { CartProvider } from './context/CartContext';
+import Cart from './pages/Cart/Cart';
 
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
 
 function App() {
     return (
-        <BrowserRouter>
-            <ScrollToTop />
+        <CartProvider>
+            <BrowserRouter>
+                <ScrollToTop />
 
-            <Routes>
+                <Routes>
 
-                <Route element={<MainLayout />}>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/inicio" element={<Home />} />
-                    <Route path="/produtos" element={<Products />} />
-                    <Route path="/contato" element={<Contact />} />
-                </Route>
+                    <Route element={<MainLayout />}>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/inicio" element={<Home />} />
+                        <Route path="/produtos" element={<Products />} />
+                        <Route path="/produtos/:id" element={<ProductDetails />} />
+                        <Route path="/contato" element={<Contact />} />
+                    </Route>
 
-                <Route element={<SimpleLayout />}>
-                    {/* <Route path="/login" element={<Login />} />
-                    <Route path="/carrinho" element={<Carrinho />} /> */}
-                </Route>
+                    <Route element={<SimpleLayout />}>
+                        {/* <Route path="/login" element={<Login />} /> */}
+                        <Route path="/carrinho" element={<Cart />} />
+                    </Route>
 
-            </Routes>
-        </BrowserRouter>
+                </Routes>
+            </BrowserRouter>
+        </CartProvider>
+
     );
 }
 
