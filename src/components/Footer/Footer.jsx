@@ -13,13 +13,13 @@ function Footer() {
                 <Row className="gy-4 mb-4">
 
                     <Col xs={12} md={6}>
-                        <h5 className="text-white mb-3 fs-3 fw-bold">Central de Atendimento</h5>
+                        <h5 className="text-white mb-3 fs-4 fw-bold">Central de Atendimento</h5>
                         <Nav className="flex-column">
                             <Nav.Item className="mb-2">
                                 <Nav.Link href="#" className="p-0 fs-5 text-secondary hover-light">Trocas e Devoluções</Nav.Link>
                             </Nav.Item>
                             <Nav.Item className="mb-2">
-                                <Nav.Link href="#" className="p-0 fs-5 text-secondary hover-light">Entre em Contato</Nav.Link>
+                                <Nav.Link href="/contato" className="p-0 fs-5 text-secondary hover-light">Entre em Contato</Nav.Link>
                             </Nav.Item>
                             <Nav.Item className="mb-2">
                                 <Nav.Link href="#" className="p-0 fs-5 text-secondary hover-light">Termos de Uso e Política de Privacidade</Nav.Link>
@@ -28,7 +28,7 @@ function Footer() {
                     </Col>
 
                     <Col xs={12} md={6}>
-                        <h5 className="text-white mb-3 fs-3 fw-bold">Siga-nos em nossas redes</h5>
+                        <h5 className="text-white mb-3 fs-4 fw-bold">Siga-nos em nossas redes</h5>
                         <Nav className="flex-column">
                             <Nav.Item className="mb-3">
                                 <Nav.Link href="https://instagram.com/asymmetric_gang" className="p-0 fs-5 text-secondary hover-light d-flex align-items-center">

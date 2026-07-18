@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
 
 :root {
   --cinza: #7e7e7e;
@@ -16,33 +16,61 @@ html, body {
   scroll-behavior: auto !important;
 }
 
+.fw-semibold {
+  font-weight: 600 !important;
+}
+
+.fw-bold {
+  font-weight: 700 !important;
+}
+
 .fw-black {
   font-weight: 900;
+}
+
+.border-grey {
+  border: 1px solid var(--cinza);
+}
+
+.text-grey {
+  color: var(--cinza);
 }
 
 .card {
   border-radius: 0px;
 }
-.card-produto {
+
+
+
+.product-card {
   border: 1px solid var(--cinza);
 }
 
-.button-vermais {
-  background-color: #fff;
+.button-vermais, .button-enviar {
+  background-color: var(--cinza);
   border: solid 1px var(--cinza);
-  color: var(--cinza);
+  color: #fff;
   transition: 0.5s;
 }
 
 
-.button-vermais:hover {
-  background-color: var(--cinza);
-  color: #fff;
+.button-vermais:hover, .button-enviar:hover {
+  background-color: #fff;
+  color: var(--cinza);
   border: solid 1px var(--cinza);
+  letter-spacing: 1px;
 }
 
-.button-vermais:active {
+.button-vermais:active, .button-enviar:active {
   background-color: #111111 !important; 
   border-color: #111111 !important;
   opacity: 0.85;
+}
+
+.contact-page button[type="submit"]:disabled {
+    background-color: #212529 !important; /* Cor dark do Bootstrap */
+    border-color: #212529 !important;
+    color: #ffffff !important;
+    opacity: 0.7; /* Deixa ele levemente opaco para o usuário ver que está carregando */
+    cursor: not-allowed; /* Muda o ponteiro do mouse para indicar que está travado */
 }

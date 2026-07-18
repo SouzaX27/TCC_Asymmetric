@@ -7,7 +7,7 @@ function Products() {
     return (
         <div className="products-page animate-fade-in">
 
-            <h2 className="fs-1 fw-bold my-4 text-center tracking-wide">Produtos</h2>
+            <h2 className="fs-1 fw-bold my-4 text-center text-black tracking-wide">Produtos</h2>
 
             <Container className="mb-5">
                 <Row className="g-4">

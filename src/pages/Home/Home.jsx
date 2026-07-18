@@ -11,7 +11,7 @@ function Home() {
     return (
         <div className="home-page animate-fade-in">
 
-            <h2 className="fs-1 fw-bold my-4 text-center tracking-wide">Bem-Vindo</h2>
+            <h2 className="fs-1 fw-bold my-4 text-center text-black tracking-wide">Bem-Vindo</h2>
 
 
             <section className="hero-section bg-black py-4 mb-5 d-flex align-items-center justify-content-center">
