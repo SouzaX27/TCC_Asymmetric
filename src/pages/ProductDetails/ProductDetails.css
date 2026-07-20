@@ -1,0 +1,88 @@
+
+
+
+.product-card-hover .related-img {
+  transition: transform 0.3s ease;
+  object-fit: cover;
+  height: 320px;
+  width: 100%;
+}
+
+.product-card-hover:hover .related-img {
+  transform: scale(1.03);
+}
+
+
+@media (min-width: 768px) {
+  .swipe-card-wrapper {
+    flex: 0 0 23%; 
+  }
+}
+
+.swipe-card-wrapper .product-card:hover {
+    transform: scale(1);
+}
+
+
+.swipe-card-wrapper .card-title,
+.swipe-card-wrapper h5,
+.swipe-card-wrapper h6 {
+  font-size: 1.5rem !important; 
+  line-height: 1.2;
+}
+
+
+.swipe-card-wrapper .card-text,
+.swipe-card-wrapper p,
+.swipe-card-wrapper span {
+  font-size: 1.2rem !important; 
+}
+
+
+
+
+/* 1. Container Principal: habilita rolagem horizontal e o "Snap" */
+.swipe-carousel {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory; /* Faz o card travar no lugar certinho ao soltar */
+  -webkit-overflow-scrolling: touch; /* Deslizar suave no iOS/Android */
+  padding-bottom: 16px; /* Espaço para a barra não colar nos preços */
+  
+  /* Estilo da barra para Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--cinza) rgba(0, 0, 0, 0); /* [Barrinha] [Trilho] */
+}
+
+/* 2. Estilo da Barra de Rolagem no Chrome, Edge, Safari e Brave */
+.swipe-carousel::-webkit-scrollbar {
+  height: 4px; /* Barra fininha e discreta */
+  display: block !important; /* Força a barra a ficar visível */
+}
+
+.swipe-carousel::-webkit-scrollbar-track {
+  background: #000000; /* Fundo cinza do trilho */
+}
+
+.swipe-carousel::-webkit-scrollbar-thumb {
+  background-color: #000000; /* Indicador preto que desliza */
+  border-radius: 0;
+}
+
+.swipe-carousel::-webkit-scrollbar-thumb:hover {
+  background-color: #333333;
+}
+
+/* 3. Tamanho de cada Card no Carrossel */
+.swipe-card-wrapper {
+  flex: 0 0 75%; /* No celular: ocupa 75% da tela, mostrando uma pontinha do próximo */
+  scroll-snap-align: start;
+}
+
+/* Responsivo para Desktop (a partir de 768px) */
+@media (min-width: 768px) {
+  .swipe-card-wrapper {
+    flex: 0 0 23%; /* No PC: exibe cerca de 4 cards por linha */
+  }
+}

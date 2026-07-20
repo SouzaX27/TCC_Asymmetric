@@ -11,10 +11,11 @@ function Cart() {
   // Se o carrinho estiver vazio, exibe uma tela amigável para o usuário voltar à loja
   if (cart.length === 0) {
     return (
-      <Container className="py-5 text-center d-flex flex-column align-items-center justify-content-center min-vh-100">
+      <Container className="py-5 text-center d-flex flex-column align-items-center justify-content-center mt-5">
         <h2 className="fw-bold text-uppercase mb-3">Seu carrinho está vazio</h2>
-        <p className="text-muted mb-4">Que tal dar uma olhada nos nossos últimos lançamentos?</p>
-        <Link to="/produtos" className="btn btn-dark text-uppercase px-4 py-3 fw-bold">
+        <p className="text-muted mb-4">Que tal dar uma olhada nos nossos produtos?</p>
+        {/* <p className="text-muted mb-4">Que tal dar uma olhada nos nossos últimos lançamentos?</p> */}
+        <Link to="/produtos" className="button-1 text-uppercase px-4 py-3 fw-bold">
           Ver Produtos
         </Link>
       </Container>
@@ -23,12 +24,12 @@ function Cart() {
 
   return (
     <Container className="py-5 min-vh-100 cart-page">
-      <h1 className="fw-bold text-uppercase mb-5 border-bottom pb-3">Seu Carrinho</h1>
+      <h1 className="fw-bold text-black text-uppercase mb-2 border-bottom pb-3">Seu Carrinho</h1>
 
-      <Row className="gy-4">
+      <Col className="w-100">
         {/* COLUNA ESQUERDA: LISTA DE PRODUTOS NO CARRINHO */}
-        <Col lg={8} md={12}>
-          <ListGroup variant="flush" className="border-top border-bottom">
+        <Row>
+          <ListGroup variant="flush" className="border-bottom">
             {cart.map((item) => (
               <ListGroup.Item key={`${item.id}-${item.size}`} className="py-4 px-0">
                 <Row className="align-items-center gy-3">
@@ -37,7 +38,7 @@ function Cart() {
                     <img 
                       src={item.imagem?.[0]} 
                       alt={item.nome} 
-                      className="img-fluid border-grey" 
+                      className="img-fluid ms-2" 
                     />
                   </Col>
 
@@ -45,12 +46,12 @@ function Cart() {
                   <Col xs={8} sm={4}>
                     <h5 className="fw-bold text-uppercase mb-1 fs-6">{item.nome}</h5>
                     <p className="text-muted small mb-0">Tamanho: <span className="fw-semibold text-dark">{item.size}</span></p>
-                    <p className="text-muted small mb-0">Qtd: {item.quantity}</p>
+                    <p className="text-muted small mb-0">Qtd: <span className="fw-semibold text-dark">{item.quantity}</span></p>
                   </Col>
 
                   {/* Preço total do item (Preço x Quantidade) */}
                   <Col xs={6} sm={3} className="text-sm-center">
-                    <span className="fw-semibold">
+                    <span className="fw-semibold ms-3">
                       {(item.preco * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </span>
                   </Col>
@@ -59,7 +60,7 @@ function Cart() {
                   <Col xs={6} sm={3} className="text-end">
                     <button 
                       type="button" 
-                      className="remove-btn text-uppercase small fw-bold tracking-wider"
+                      className="button-2 me-3 text-uppercase small fw-bold tracking-wider"
                       onClick={() => removeFromCart(item.id, item.size)}
                     >
                       Remover
@@ -69,10 +70,12 @@ function Cart() {
               </ListGroup.Item>
             ))}
           </ListGroup>
-        </Col>
+        </Row>
 
-        {/* COLUNA DIREITA: RESUMO DO PEDIDO */}
-        <Col lg={4} md={12}>
+
+      </Col>
+      
+        <Col className='w-100 mt-4'>
           <Card className="border-grey p-4 bg-light shadow-sm summary-card">
             <h3 className="fw-bold text-uppercase mb-4 fs-5">Resumo do Pedido</h3>
             
@@ -94,16 +97,16 @@ function Cart() {
             </div>
 
             {/* Seu componente de botão customizado */}
-            <Button className="w-100 py-3 text-uppercase fw-bold tracking-wider">
+            <Button className="button-1 w-100 py-3 text-uppercase fw-bold tracking-wider">
               Fechar Pedido
             </Button>
             
-            <Link to="/produtos" className="d-block text-center mt-3 text-muted small text-decoration-none hover-underline">
+            <Link to="/produtos" className="d-block text-center mt-3 text-muted fs-5 text-decoration-none hover-underline">
               Continuar Comprando
             </Link>
           </Card>
         </Col>
-      </Row>
+
     </Container>
   );
 }
