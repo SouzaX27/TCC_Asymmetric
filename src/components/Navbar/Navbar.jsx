@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Navbar as BootstrapNavbar, Offcanvas } from 'react-bootstrap';
 import { Link } from 'react-router-dom'; 
 
+import { useCart } from '../../context/CartContext';
+
 import './Navbar.css';
 
 import menuIcon from '../../assets/images/menu.svg';
@@ -10,6 +12,7 @@ import cartIcon from '../../assets/images/cart.svg';
 
 function Navbar() {
     const [showMenu, setShowMenu] = useState(false);
+    const { totalItems } = useCart();
 
     const handleClose = () => setShowMenu(false);
     const handleShow = () => setShowMenu(true);
@@ -40,12 +43,18 @@ function Navbar() {
                             />
                     </Link>
 
-                    <Link className="nav-cart m-0 p-0 d-flex justify-content-end align-items-center" to="/carrinho">
+                    <Link to="/carrinho" className="nav-cart m-0 p-0 d-flex justify-content-end align-items-center">
                         <img
                             src={cartIcon}
                             alt="Carrinho"
                             className="cart-icon"
                         />
+                        {totalItems > 0 && (
+                            <span className="cart-badge">
+                                {totalItems}
+                            </span>
+                        )}
+                        
                     </Link>
 
                 </div>

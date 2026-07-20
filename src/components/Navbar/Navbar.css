@@ -7,3 +7,36 @@
     width: 85vw;
     max-width: 320px;
 }
+
+/* .cart-badge {
+  position: absolute;
+  top: 35px;
+  right: 20px;
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: bold;
+  border-radius: 25%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+} */
+
+.cart-badge {
+  position: absolute;
+  top: 8px;
+  right: 25px;
+  color: #000000;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 25%;
+
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
