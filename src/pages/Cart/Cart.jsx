@@ -31,7 +31,7 @@ function Cart() {
         <Row>
           <ListGroup variant="flush" className="border-bottom">
             {cart.map((item) => (
-              <ListGroup.Item key={`${item.id}-${item.size}`} className="py-4 px-0">
+              <ListGroup.Item key={`${item.id}-${item.tamanho}`} className="py-4 px-0">
                 <Row className="align-items-center gy-3">
                   {/* Imagem do Produto */}
                   <Col xs={4} sm={2}>
@@ -45,14 +45,14 @@ function Cart() {
                   {/* Detalhes (Nome e Tamanho) */}
                   <Col xs={8} sm={4}>
                     <h5 className="fw-bold text-uppercase mb-1 fs-6">{item.nome}</h5>
-                    <p className="text-muted small mb-0">Tamanho: <span className="fw-semibold text-dark">{item.size}</span></p>
-                    <p className="text-muted small mb-0">Qtd: <span className="fw-semibold text-dark">{item.quantity}</span></p>
+                    <p className="text-muted small mb-0">Tamanho: <span className="fw-semibold text-dark">{item.tamanho}</span></p>
+                    <p className="text-muted small mb-0">Qtd: <span className="fw-semibold text-dark">{item.quantidade}</span></p>
                   </Col>
 
                   {/* Preço total do item (Preço x Quantidade) */}
                   <Col xs={6} sm={3} className="text-sm-center">
                     <span className="fw-semibold ms-3">
-                      {(item.preco * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      {(item.preco * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </span>
                   </Col>
 
@@ -61,7 +61,7 @@ function Cart() {
                     <button 
                       type="button" 
                       className="button-2 me-3 text-uppercase small fw-bold tracking-wider"
-                      onClick={() => removeFromCart(item.id, item.size)}
+                      onClick={() => removeFromCart(item.id, item.tamanho)}
                     >
                       Remover
                     </button>

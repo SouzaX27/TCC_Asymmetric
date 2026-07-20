@@ -4,54 +4,50 @@ import { createContext, useState, useContext } from 'react';
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState([]);
+    const [cart, setCart] = useState([]);
 
-  // Função para adicionar produto ao carrinho
-  const addToCart = (product, size) => {
-    setCart((prevCart) => {
-      // No streetwear, um mesmo produto com tamanhos diferentes são itens separados no carrinho!
-      const itemExists = prevCart.find(
-        (item) => item.id === product.id && item.size === size
-      );
+    // Soma a quantidade de peças totais na sacola
+    const totalItems = cart.reduce((total, item) => total + (item.quantidade || 1), 0);
+    
+    const addToCart = (produto, tamanho) => {
+        setCart((prevCart) => {
+            const itemExiste = prevCart.find(
+                (item) => item.id === produto.id && item.tamanho === tamanho
+            );
 
-      if (itemExists) {
-        // Se já existe o mesmo produto E o mesmo tamanho, aumenta a quantidade
-        return prevCart.map((item) =>
-          item.id === product.id && item.size === size
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+            if (itemExiste) {
+                return prevCart.map((item) =>
+                    item.id === produto.id && item.tamanho === tamanho
+                        ? { ...item, quantidade: item.quantidade + 1 }
+                        : item
+                );
+            }
+
+            return [...prevCart, { ...produto, tamanho, quantidade: 1 }];
+        });
+    };
+
+    const removeFromCart = (produtoId, tamanho) => {
+        setCart((prevCart) =>
+            prevCart.filter((item) => !(item.id === produtoId && item.tamanho === tamanho))
         );
-      }
+    };
 
-      // Se for um item novo ou tamanho diferente, adiciona à lista
-      return [...prevCart, { ...product, size, quantity: 1 }];
-    });
-  };
+    const clearCart = () => setCart([]);
 
-  // Função para remover item
-  const removeFromCart = (productId, size) => {
-    setCart((prevCart) =>
-      prevCart.filter((item) => !(item.id === productId && item.size === size))
+    // Valor total do carrinho (preço * quantidade)
+    const cartTotal = cart.reduce((total, item) => total + (item.preco * item.quantidade), 0);
+
+    // Contagem total de peças
+    const cartCount = cart.reduce((total, item) => total + item.quantidade, 0);
+
+    return (
+        <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, cartTotal, cartCount, totalItems }}>
+            {children}
+        </CartContext.Provider>
     );
-  };
-
-  // Função para limpar o carrinho (útil pós-compra)
-  const clearCart = () => setCart([]);
-
-  // Calcula o valor total do carrinho
-  const cartTotal = cart.reduce((total, item) => total + item.preco * item.quantity, 0);
-
-  // Calcula o total de itens (para mostrar uma bolinha com número na navbar no futuro)
-  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
-
-  return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, cartTotal, cartCount }}>
-      {children}
-    </CartContext.Provider>
-  );
 }
 
-// Hook customizado para facilitar o uso nas páginas
 export function useCart() {
-  return useContext(CartContext);
+    return useContext(CartContext);
 }
