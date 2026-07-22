@@ -2,14 +2,15 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { MainLayout, SimpleLayout } from './layouts/Layout';
 
+import ScrollToTop from './components/ScrollToTop/ScrollToTop';
+
 import Home from './pages/Home/Home';
 import Products from './pages/Products/Products';
 import Contact from './pages/Contact/Contact';
 import ProductDetails from './pages/ProductDetails/ProductDetails';
 import { CartProvider } from './context/CartContext';
 import Cart from './pages/Cart/Cart';
-
-import ScrollToTop from './components/ScrollToTop/ScrollToTop';
+import Checkout from './pages/Checkout/Checkout';
 
 function App() {
     return (
@@ -30,6 +31,7 @@ function App() {
                     <Route element={<SimpleLayout />}>
                         {/* <Route path="/login" element={<Login />} /> */}
                         <Route path="/carrinho" element={<Cart />} />
+                        <Route path="/checkout" element={<Checkout />} />
                     </Route>
 
                 </Routes>
