@@ -2,6 +2,7 @@
 
 :root {
   --cinza: #7e7e7e;
+  --cinza-escuro: #535353;
 }
 
 * {
@@ -78,7 +79,7 @@ html, body {
 }
 
 .button-2:hover {
-  background-color: var(--cinza);
+  background-color: var(--cinza-escuro);
   color: #fff;
 }
 

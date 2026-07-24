@@ -346,7 +346,7 @@ function Checkout() {
                         </div>
 
                         <button type="submit" className="button-1 w-100 py-3 fw-bold text-uppercase">
-                            Concluir Pedido
+                            Avançar
                         </button>
                     </div>
                 </div>

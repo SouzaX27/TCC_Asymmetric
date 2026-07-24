@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom'; // 1. Importamos o useParams para ler a URL
+import { useParams, Link } from 'react-router-dom';
 import { Container, Row, Col, Alert, Carousel, Card } from 'react-bootstrap';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import Button from '../../components/Button/Button';
