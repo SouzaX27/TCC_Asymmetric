@@ -108,9 +108,12 @@ function ProductDetails() {
                             <Button onClick={handleAddToCart} className="w-100 button-1 py-3 text-uppercase fw-bold">
                                 Adicionar ao Carrinho
                             </Button>
+                            <Button to="/carrinho" className="w-100 button-2 mt-2 py-3 text-uppercase fw-bold">
+                                Ver Carrinho
+                            </Button>
                         </div>
 
-                        <hr className="my-5 border-grey" />
+                        <hr className="my-5 border-grey"/>
 
                         <div className="product-description mb-4">
                             <h5 className="fw-bold text-uppercase text-grey fs-5 mb-2">Descrição</h5>
