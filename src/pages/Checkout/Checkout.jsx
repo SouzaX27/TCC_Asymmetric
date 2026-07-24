@@ -1,27 +1,28 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-// import './Checkout.css';
 
 function Checkout() {
     const navigate = useNavigate();
     const { cart, cartTotal, clearCart } = useCart();
 
-    const [formData, setFormData] = useState({
-        nome: '',
-        email: '',
-        telefone: '',
-        cep: '',
-        logradouro: '',
-        numero: '',
-        bairro: '',
-        cidade: '',
-        estado: '',
-        cupom: '',
-        formaPagamento: 'pix'
+    const [formData, setFormData] = useState(() => {
+        const dadosSalvos = sessionStorage.getItem('checkout_formData');
+        return dadosSalvos ? JSON.parse(dadosSalvos) : {
+            nome: '',
+            email: '',
+            telefone: '',
+            cep: '',
+            logradouro: '',
+            numero: '',
+            bairro: '',
+            cidade: '',
+            estado: '',
+            cupom: '',
+            formaPagamento: 'pix'
+        };
     });
 
-    // ESTADOS DO FRETE
     const [opcoesFrete, setOpcoesFrete] = useState([]);
     const [freteSelecionado, setFreteSelecionado] = useState(null);
 
@@ -33,7 +34,6 @@ function Checkout() {
         }));
     };
 
-    // FUNÇÃO QUE SIMULA O CÁLCULO DE FRETE
     const calcularFreteSimulado = (uf) => {
         let baseValor = 18.50;
         if (['SP', 'RJ', 'MG', 'PR'].includes(uf)) {
@@ -50,10 +50,9 @@ function Checkout() {
         ];
 
         setOpcoesFrete(opcoes);
-        setFreteSelecionado(opcoes[0]); // Seleciona o PAC automaticamente
+        setFreteSelecionado(opcoes[0]);
     };
 
-    // FUNÇÃO API CEP
     const handleCepBlur = async (e) => {
         const cepLimpo = e.target.value.replace(/\D/g, '');
 
@@ -71,7 +70,6 @@ function Checkout() {
                         estado: data.uf
                     }));
 
-                    // Chama a simulação de frete com base no estado retornado
                     calcularFreteSimulado(data.uf);
                 } else {
                     alert('CEP não encontrado. Por favor, verifique o número digitado.');
@@ -100,26 +98,41 @@ function Checkout() {
             return;
         }
 
-        // Simulação de finalização do pedido
-        console.log('Dados do Pedido:', {
+        // Estrutura completa dos dados do pedido
+        const pedidoRascunho = {
             cliente: formData,
-            itens: cart,
             frete: freteSelecionado,
             subtotal: cartTotal,
             totalGeral: totalComFrete
-        });
+        };
 
-        clearCart();
-        alert('Pedido realizado com sucesso!');
-        navigate('/inicio');
+        // Salva no sessionStorage para persistir
+        sessionStorage.setItem('checkout_formData', JSON.stringify(formData));
+        sessionStorage.setItem('checkout_pedido', JSON.stringify(pedidoRascunho));
+
+        // Redireciona para a página de pagamento/revisão
+        navigate('/pagamento');
     };
+
+    if (cart.length === 0) {
+        return (
+            <div className="container mt-5 pt-5 text-center">
+                <div className="max-width-600 mx-auto">
+                    <h2 className="fw-bold text-uppercase mb-3">Seu carrinho está vazio</h2>
+                    <p className=" text-muted mb-4">Adicione alguns produtos para continuar com o checkout.</p>
+                    <Link to="/inicio" className="button-1 text-decoration-none d-inline-block px-4 py-3 fw-bold text-uppercase">
+                        Voltar para a Loja
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container my-2 pt-5">
             <h1 className="fw-bold text-black text-uppercase mb-2 pb-3">Finalizar Pedido</h1>
 
             <form onSubmit={handleSubmit} className="row g-4">
-                {/* COLUNA DA ESQUERDA: DADOS E ENDEREÇO */}
                 <div className="col-lg-7">
                     <div className="border-grey p-4 mb-4">
                         <h4 className="mb-3 fs-3 fw-bold">Dados Pessoais</h4>
@@ -232,7 +245,6 @@ function Checkout() {
                             </div>
                         </div>
 
-                        {/* SEÇÃO DE OPÇÕES DE FRETE */}
                         {opcoesFrete.length > 0 && (
                             <div className="mt-4 border-top pt-3">
                                 <h4 className="mb-3 fs-3 fw-bold">Opções de Entrega</h4>
@@ -259,7 +271,6 @@ function Checkout() {
                     </div>
                 </div>
 
-                {/* COLUNA DA DIREITA: RESUMO E PAGAMENTO */}
                 <div className="col-lg-5">
                     <div className="border-grey p-4">
                         <h4 className="mb-3 fs-3 fw-bold">Resumo do Pedido</h4>
@@ -276,7 +287,6 @@ function Checkout() {
                             ))}
                         </div>
 
-                        {/* CUPOM DE DESCONTO */}
                         <div className="mb-3">
                             <label className="form-label fs-5">Cupom de Desconto</label>
                             <div className="d-flex gap-2">
@@ -291,7 +301,6 @@ function Checkout() {
                             </div>
                         </div>
 
-                        {/* DETALHAMENTO DE VALORES (SUBTOTAL + FRETE) */}
                         <div className="border-top pt-3 mb-3 fs-5">
                             <div className="d-flex justify-content-between mb-2">
                                 <span>Subtotal:</span>
@@ -303,7 +312,6 @@ function Checkout() {
                             </div>
                         </div>
 
-                        {/* FORMA DE PAGAMENTO */}
                         <h4 className="mt-3 mb-3 fs-3 fw-bold">Forma de Pagamento</h4>
                         <div className="mb-4">
                             <div className="form-check mb-2">

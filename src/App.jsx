@@ -11,6 +11,7 @@ import ProductDetails from './pages/ProductDetails/ProductDetails';
 import { CartProvider } from './context/CartContext';
 import Cart from './pages/Cart/Cart';
 import Checkout from './pages/Checkout/Checkout';
+// import Payment from './pages/Payment/Payment';
 
 function App() {
     return (
@@ -32,6 +33,7 @@ function App() {
                         {/* <Route path="/login" element={<Login />} /> */}
                         <Route path="/carrinho" element={<Cart />} />
                         <Route path="/checkout" element={<Checkout />} />
+                        {/* <Route path="/pagamento" element={<Payment />} /> */}
                     </Route>
 
                 </Routes>
