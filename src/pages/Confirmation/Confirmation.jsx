@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router-dom';
 function Confirmation() {
     const navigate = useNavigate();
     const [pedidoFinal, setPedidoFinal] = useState(null);
-    const [codigoPedido, setCodigoPedido] = useState('');
 
     useEffect(() => {
         const pedidoSalvo = sessionStorage.getItem('checkout_pedido');
@@ -14,11 +13,39 @@ function Confirmation() {
             return;
         }
 
-        setPedidoFinal(JSON.parse(pedidoSalvo));
+        const dados = JSON.parse(pedidoSalvo);
         
-        const novoCodigo = `#ASMM-${Math.floor(10000 + Math.random() * 90000)}`;
-        setCodigoPedido(novoCodigo);
+        // Se por algum motivo o Payment não gerou o código, gera um aqui de fallback
+        if (!dados.codigoPedido) {
+            dados.codigoPedido = `#ASMM-${Math.floor(10000 + Math.random() * 90000)}`;
+        }
 
+        setPedidoFinal(dados);
+
+        // Prepara o objeto do pedido para o histórico do Orders.jsx
+        const novoPedidoCompleto = {
+            id: dados.codigoPedido,
+            data: new Date().toLocaleDateString('pt-BR'),
+            status: 'Pagamento Aprovado',
+            statusColor: 'bg-success',
+            cliente: dados.cliente,
+            frete: dados.frete,
+            subtotal: dados.subtotal,
+            totalGeral: dados.totalGeral,
+            itens: dados.itens || ['Itens da Compra']
+        };
+
+        // Salva no histórico local
+        const historicoAntigo = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
+        
+        // Evita duplicar no F5
+        const pedidoJaExiste = historicoAntigo.some(p => p.id === dados.codigoPedido);
+        if (!pedidoJaExiste) {
+            const novoHistorico = [novoPedidoCompleto, ...historicoAntigo];
+            localStorage.setItem('meus_pedidos', JSON.stringify(novoHistorico));
+        }
+
+        // Limpa apenas o formulário de dados do checkout
         sessionStorage.removeItem('checkout_formData');
     }, [navigate]);
 
@@ -26,7 +53,7 @@ function Confirmation() {
         return null;
     }
 
-    const { cliente, frete, subtotal, totalGeral } = pedidoFinal;
+    const { cliente, frete, subtotal, totalGeral, codigoPedido } = pedidoFinal;
 
     return (
         <div className="container my-5 pt-5">
@@ -42,6 +69,7 @@ function Confirmation() {
                         Status: Pagamento Aprovado
                     </span>
                 </div>
+                
                 <div className="border-grey p-4 mb-4 text-start">
                     <h4 className="fs-3 fw-bold mb-3 border-bottom pb-2">Resumo da Compra</h4>
                     
@@ -59,7 +87,7 @@ function Confirmation() {
 
                 <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center mt-4">
                     <Link 
-                        to="/meus-pedidos" 
+                        to="/pedidos" 
                         className="button-1 text-decoration-none px-4 py-3 fw-bold text-uppercase fs-5"
                     >
                         Acompanhar Pedido

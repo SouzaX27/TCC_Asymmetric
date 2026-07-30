@@ -45,11 +45,22 @@ function Payment() {
         navigate('/checkout');
     };
 
-    // Função que conclui o pedido e redireciona para Confirmation
-    const concluirEIrParaConfirmacao = () => {
-        clearCart();
-        navigate('/confirmacao');
-    };
+const concluirEIrParaConfirmacao = () => {
+    // Recupera o pedido atual do sessionStorage
+    const pedidoSalvo = JSON.parse(sessionStorage.getItem('checkout_pedido') || '{}');
+    
+    // Gera um código NOVO para esta compra específica
+    const novoCodigo = `#ASMM-${Math.floor(10000 + Math.random() * 90000)}`;
+    
+    // Salva o pedido com o seu código único no sessionStorage
+    sessionStorage.setItem('checkout_pedido', JSON.stringify({
+        ...pedidoSalvo,
+        codigoPedido: novoCodigo
+    }));
+
+    clearCart();
+    navigate('/confirmacao');
+};
 
     const handleFinalizarCompra = (e) => {
         e.preventDefault();

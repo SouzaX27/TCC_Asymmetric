@@ -13,6 +13,7 @@ import Cart from './pages/Cart/Cart';
 import Checkout from './pages/Checkout/Checkout';
 import Payment from './pages/Payment/Payment';
 import Confirmation from './pages/Confirmation/Confirmation';
+import Orders from './pages/Orders/Orders';
 
 function App() {
     return (
@@ -37,6 +38,7 @@ function App() {
                         <Route path="/pagamento" element={<Payment />} />
                         <Route path="/pagamento" element={<Payment />} />
                         <Route path="/confirmacao" element={<Confirmation />} />
+                        <Route path="/pedidos" element={<Orders />} />
                     </Route>
 
                 </Routes>

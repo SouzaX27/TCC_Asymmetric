@@ -64,7 +64,7 @@ html, body {
   letter-spacing: 1px;
 }
 
-.button-vermais:active, .button-enviar:active, .button-1:active {
+.button-vermais:active, .button-enviar:active, .button-1:active, .button-2:active {
   background-color: #111111 !important; 
   border-color: #111111 !important;
   opacity: 0.85;
@@ -80,6 +80,7 @@ html, body {
 
 .button-2:hover {
   background-color: var(--cinza-escuro);
+  border: solid 1px var(--cinza);
   color: #fff;
 }
 
