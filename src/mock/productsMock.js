@@ -56,10 +56,10 @@ export const productsMock = [
     },
     {
      id: 6,
-     nome: "Camiseta Dalmatian",
+     nome: "Camiseta 3Skulls",
      preco: 89.99,
      imagem: [
-       "/src/assets/products/camisetaDalmatianB.png",
+       "/src/assets/products/camisetaSkullsP.png",
        "/src/assets/products/medidas.jpg"
      ],
      descricao: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum at dignissim eros. Class aptent taciti sociosqu.",
