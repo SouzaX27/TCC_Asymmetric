@@ -77,6 +77,9 @@ function Navbar() {
                         <li className="nav-item">
                             <a className="nav-link" href="/contato" onClick={handleClose}>Contato</a>
                         </li>
+                        <li className="nav-item">
+                            <a className="nav-link" href="/pedidos" onClick={handleClose}>Pedidos</a>
+                        </li>
                         
                         <li className="nav-item mt-5">
                             <Link className="nav-link" to="/login" onClick={handleClose}>Login</Link>
