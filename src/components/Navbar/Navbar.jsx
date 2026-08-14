@@ -69,16 +69,16 @@ function Navbar() {
                 <Offcanvas.Body>
                     <ul className="navbar-nav justify-content-end flex-grow-1 pe-3 fs-4">
                         <li className="nav-item">
-                            <a className="nav-link" href="/inicio" onClick={handleClose}>Início</a>
+                            <Link to="/inicio" className="nav-link" onClick={handleClose}>Início</Link>
                         </li>
                         <li className="nav-item">
-                            <a className="nav-link" href="/produtos" onClick={handleClose}>Produtos</a>
+                            <Link to="/produtos" className="nav-link" onClick={handleClose}>Produtos</Link>
                         </li>
                         <li className="nav-item">
-                            <a className="nav-link" href="/contato" onClick={handleClose}>Contato</a>
+                            <Link to="/contato" className="nav-link" onClick={handleClose}>Contato</Link>
                         </li>
                         <li className="nav-item">
-                            <a className="nav-link" href="/pedidos" onClick={handleClose}>Pedidos</a>
+                            <Link to="/pedidos" className="nav-link" onClick={handleClose}>Pedidos</Link>
                         </li>
                         
                         <li className="nav-item mt-5">
