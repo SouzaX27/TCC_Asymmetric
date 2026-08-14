@@ -6,7 +6,7 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
     const [cart, setCart] = useState([]);
 
-    // Soma a quantidade de peças totais na sacola
+    
     const totalItems = cart.reduce((total, item) => total + (item.quantidade || 1), 0);
     
     const addToCart = (produto, tamanho) => {
@@ -35,10 +35,8 @@ export function CartProvider({ children }) {
 
     const clearCart = () => setCart([]);
 
-    // Valor total do carrinho (preço * quantidade)
     const cartTotal = cart.reduce((total, item) => total + (item.preco * item.quantidade), 0);
 
-    // Contagem total de peças
     const cartCount = cart.reduce((total, item) => total + item.quantidade, 0);
 
     return (
