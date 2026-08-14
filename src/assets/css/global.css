@@ -59,7 +59,7 @@ html, body {
 .button-vermais:hover, .button-enviar:hover, .button-1:hover {
   background-color: #fff;
   color: var(--cinza);
-  border: solid 1px var(--cinza);
+  border: solid 1px var(--cinza) !important;
   /* box-shadow: 0px 6px 7px 0px; */
   letter-spacing: 1px;
 }
