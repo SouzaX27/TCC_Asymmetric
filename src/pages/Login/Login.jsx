@@ -4,16 +4,15 @@ import { useAuth } from '../../context/AuthContext';
 
 function Login() {
     const navigate = useNavigate();
-    const { login, signed } = useAuth(); // 'signed' indica se já está logado (true/false)
+    const { login, signed } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-    // Se JÁ estiver logado, redireciona direto para meus pedidos (ou início)
     useEffect(() => {
         if (signed) {
-            navigate('/pedidos');
+            navigate('/minha-conta', { replace: true });
         }
     }, [signed, navigate]);
 
@@ -24,7 +23,7 @@ function Login() {
         const res = await login(email, password);
 
         if (res.success) {
-            navigate('/pedidos');
+            navigate('/minha-conta', { replace: true });
         } else {
             setError(res.message);
         }

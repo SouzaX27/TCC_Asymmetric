@@ -17,6 +17,7 @@ import Checkout from './pages/Checkout/Checkout';
 import Payment from './pages/Payment/Payment';
 import Confirmation from './pages/Confirmation/Confirmation';
 import Orders from './pages/Orders/Orders';
+import Account from './pages/Account/Account';
 
 function App() {
     return (
@@ -31,6 +32,7 @@ function App() {
                             <Route path="/" element={<Home />} />
                             <Route path="*" element={<Home />} />
                             <Route path="/inicio" element={<Home />} />
+                            <Route path="/minha-conta" element={<Account />} />
                             <Route path="/produtos" element={<Products />} />
                             <Route path="/produtos/:id" element={<ProductDetails />} />
                             <Route path="/contato" element={<Contact />} />

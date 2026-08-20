@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Navbar as BootstrapNavbar, Offcanvas } from 'react-bootstrap';
-import { Link } from 'react-router-dom'; 
+import { Link, useNavigate } from 'react-router-dom'; 
 
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 import './Navbar.css';
 
@@ -13,9 +14,17 @@ import cartIcon from '../../assets/images/cart.svg';
 function Navbar() {
     const [showMenu, setShowMenu] = useState(false);
     const { totalItems } = useCart();
+    const { signed, user, logout } = useAuth();
+    const navigate = useNavigate();
 
     const handleClose = () => setShowMenu(false);
     const handleShow = () => setShowMenu(true);
+
+    const handleLogout = () => {
+        logout();
+        handleClose();
+        navigate('/inicio', { replace: true });
+    };
 
     return (
         <>
@@ -31,7 +40,7 @@ function Navbar() {
                             src={menuIcon}
                             alt="Menu"
                             className="nav-icon"
-                            />
+                        />
                     </button>
 
                     <Link className="nav-logo m-0 p-0 d-flex justify-content-center align-items-center" to="/inicio">
@@ -40,7 +49,7 @@ function Navbar() {
                             src={logoAsymmetric}
                             alt="ASYMMETRIC"
                             style={{ height: '32px', width: 'auto' }}
-                            />
+                        />
                     </Link>
 
                     <Link to="/carrinho" className="nav-cart m-0 p-0 d-flex justify-content-end align-items-center">
@@ -54,9 +63,7 @@ function Navbar() {
                                 {totalItems}
                             </span>
                         )}
-                        
                     </Link>
-
                 </div>
             </BootstrapNavbar>
 
@@ -77,13 +84,34 @@ function Navbar() {
                         <li className="nav-item">
                             <Link to="/contato" className="nav-link" onClick={handleClose}>Contato</Link>
                         </li>
-                        <li className="nav-item">
-                            <Link to="/pedidos" className="nav-link" onClick={handleClose}>Pedidos</Link>
-                        </li>
                         
-                        <li className="nav-item mt-5">
-                            <Link className="nav-link" to="/login" onClick={handleClose}>Login</Link>
-                        </li>
+                        {/* SE ESTIVER LOGADO */}
+                        {signed ? (
+                            <>
+                                <li className="nav-item">
+                                    <Link to="/pedidos" className="nav-link" onClick={handleClose}>Pedidos</Link>
+                                </li>
+                                <li className="nav-item">
+                                    <Link to="/minha-conta" className="nav-link" onClick={handleClose}>
+                                        Minha Conta ({user?.name?.split(' ')[0] || 'Cliente'})
+                                    </Link>
+                                </li>
+                                <li className="nav-item mt-4">
+                                    <button 
+                                        type="button" 
+                                        className="btn btn-link nav-link text-danger p-0 border-0 fs-4" 
+                                        onClick={handleLogout}
+                                    >
+                                        Sair
+                                    </button>
+                                </li>
+                            </>
+                        ) : (
+                            /* SE ESTIVER DESLOGADO */
+                            <li className="nav-item mt-5">
+                                <Link className="nav-link" to="/login" onClick={handleClose}>Login</Link>
+                            </li>
+                        )}
                     </ul>
                 </Offcanvas.Body>
             </Offcanvas>

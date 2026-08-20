@@ -10,10 +10,10 @@ function Register() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    
+
     useEffect(() => {
         if (signed) {
-            navigate('/pedidos');
+            navigate('/minha-conta', { replace: true });
         }
     }, [signed, navigate]);
 
@@ -25,11 +25,11 @@ function Register() {
             setError('A senha deve ter pelo menos 6 caracteres.');
             return;
         }
-        
+
         const res = await register(name, email, password);
 
-        if (res.success) {            
-            navigate('/pedidos');
+        if (res.success) {
+            navigate('/minha-conta', { replace: true });
         } else {
             setError(res.message);
         }
