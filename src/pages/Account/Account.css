@@ -1,0 +1,32 @@
+@font-face {
+    font-family: 'FontMyAccount';
+    src: url('../../assets/fonts/Fontmyaccount-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+.counter-points {
+    background-color: #000;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    aspect-ratio: 1;
+    width: clamp(125px, 15vw, 150px);
+    border-radius: 50%;
+    font-weight: normal;
+    font-size: clamp(3rem, 5vw, 4.5rem);
+    transition: 0.7s ease-in-out;
+}
+
+.counter-points:hover {
+    border-radius: 20%;
+    rotate: calc(360deg);
+}
+
+
+
+.font-my-account {
+    font-family: 'FontMyAccount', sans-serif !important;
+}
