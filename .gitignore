@@ -1,7 +1,7 @@
 # Frontend & Node
-node_modules
-dist
-dist-ssr
+node_modules/
+dist/
+dist-ssr/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
@@ -12,12 +12,22 @@ frontend/.vite/
 .env.*
 
 # Backend Python & Django
+venv/
+env/
 backend/venv/
 backend/env/
 **/__pycache__/
 *.py[cod]
 *$py.class
+
+# Banco de Dados Local (Raiz ou dentro de /backend)
 *.sqlite3
+db.sqlite3
+backend/db.sqlite3
+
+# Arquivos de Mídia / Uploads (Raiz ou dentro de /backend)
+media/
+backend/media/
 
 # Logs
 logs
@@ -31,7 +41,7 @@ lerna-debug.log*
 # IDEs & Editores
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
