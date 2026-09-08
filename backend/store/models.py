@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum
 
 class Admin(models.Model):
     id_admin = models.AutoField(primary_key=True)
@@ -59,6 +60,16 @@ class VariacaoProduto(models.Model):
     def __str__(self):
         return f"{self.produto.nome} - Tam: {self.tamanho}"
 
+    @property
+    def estoque_atual(self):
+        # soma as entradas
+        entradas = self.estoques.filter(tipo='Entrada').aggregate(models.Sum('quantidade'))['quantidade__sum'] or 0
+        # soma as saídas
+        saidas = self.estoques.filter(tipo='Saida').aggregate(models.Sum('quantidade'))['quantidade__sum'] or 0
+        
+        # retorna o saldo
+        return entradas - saidas
+
 
 class Pedido(models.Model):
     id_pedido = models.AutoField(primary_key=True)
@@ -88,7 +99,7 @@ class ItemPedido(models.Model):
 
 class Possui(models.Model):
     """
-    Tabela intermediária ligando Pedido ao ItemPedido (Relacionamento N:N)
+    Tabela intermediária liga Pedido ao ItemPedido (Relacionamento N:N)
     """
     pedido = models.ForeignKey(Pedido, on_delete=models.SET_NULL, null=True, db_column='fk_pedido_id')
     item_pedido = models.ForeignKey(ItemPedido, on_delete=models.SET_NULL, null=True, db_column='fk_item_pedido_id')
@@ -112,14 +123,24 @@ class ReciboPagamento(models.Model):
 
 
 class Estoque(models.Model):
+    TIPO_CHOICES = [
+        ('Entrada', 'Entrada'),
+        ('Saida', 'Saída'),
+    ]
+
     id_estoque = models.AutoField(primary_key=True)
-    admin = models.ForeignKey(Admin, on_delete=models.CASCADE, db_column='fk_admin_id')
-    variacao_produto = models.ForeignKey(VariacaoProduto, on_delete=models.CASCADE, db_column='fk_variacao_produto_id')
+    admin = models.ForeignKey(Admin, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_admin_id')
+    variacao_produto = models.ForeignKey(
+        VariacaoProduto, 
+        on_delete=models.CASCADE, 
+        related_name='estoques',
+        db_column='fk_variacao_produto_id'
+    )
     pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, null=True, blank=True, db_column='fk_pedido_id')
-    quantidade = models.IntegerField()
-    tipo = models.CharField(max_length=50)  
-    motivo = models.CharField(max_length=50)
+    quantidade = models.PositiveIntegerField()
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='Entrada')
+    motivo = models.CharField(max_length=255)
     data_movimentacao = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Movimentação #{self.id_estoque} - Qtd: {self.quantidade}"
+        return f"Movimentação #{self.id_estoque} - {self.tipo} ({self.quantidade}x)"

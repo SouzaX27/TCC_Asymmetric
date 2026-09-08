@@ -18,7 +18,7 @@ from .models import (
 
 class VariacaoProdutoInline(admin.TabularInline):
     model = VariacaoProduto
-    extra = 1  # Número de linhas em branco exibidas para adição rápida
+    extra = 1
 
 
 class PossuiInline(admin.TabularInline):
@@ -33,7 +33,7 @@ class ProdutoAdmin(admin.ModelAdmin):
     list_display = ('id_produto', 'nome', 'preco', 'imagem',  'admin')
     search_fields = ('nome', 'descricao')
     list_filter = ('admin',)
-    inlines = [VariacaoProdutoInline]  # Gerencia os tamanhos na mesma página do Produto
+    inlines = [VariacaoProdutoInline]
 
 
 @admin.register(Pedido)
@@ -42,7 +42,7 @@ class PedidoAdmin(admin.ModelAdmin):
     list_filter = ('status', 'data_pedido')
     search_fields = ('cliente__nome', 'cliente__email')
     readonly_fields = ('data_pedido',)
-    inlines = [PossuiInline]  # Gerencia os itens vinculados na mesma página do Pedido
+    inlines = [PossuiInline]
 
 
 @admin.register(Cliente)
