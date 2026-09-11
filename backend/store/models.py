@@ -44,13 +44,15 @@ class Produto(models.Model):
     id_produto = models.AutoField(primary_key=True)
     admin = models.ForeignKey(Admin, on_delete=models.CASCADE, db_column='fk_admin_id')
     nome = models.CharField(max_length=255)
+    cor = models.CharField(max_length=30, blank=True, null=True, help_text="Ex: Branco, Preto ou etc")
     descricao = models.CharField(max_length=255, blank=True, null=True)
     preco = models.DecimalField(max_digits=8, decimal_places=2)
     imagem = models.ImageField(upload_to='produtos/', null=True, blank=True)
 
     def __str__(self):
-        return self.nome
-
+        if self.cor:
+            return f"{self.nome} - {self.cor}"
+        return f"self.nome"
 
 class VariacaoProduto(models.Model):
     id_variacao = models.AutoField(primary_key=True)
@@ -73,18 +75,26 @@ class VariacaoProduto(models.Model):
 
 class Pedido(models.Model):
     id_pedido = models.AutoField(primary_key=True)
-    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, db_column='fk_cliente_id')
+    cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_cliente_id') # null true para permitir compra convidado
     cupom = models.ForeignKey(Cupom, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_cupom_id')
-    admin = models.ForeignKey(Admin, on_delete=models.CASCADE, db_column='fk_admin_id')
+
+    # admin = models.ForeignKey(Admin, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_admin_id')
+    
+    # Dados de contato do comprador (essenciais para convidados)
+    nome_comprador = models.CharField(max_length=150, blank=True, null=True)
+    email_comprador = models.EmailField(blank=True, null=True)
+    telefone_comprador = models.CharField(max_length=20, blank=True, null=True)
+
     data_pedido = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=30)
+    status = models.CharField(max_length=30, default='Pendente')
     sub_total = models.DecimalField(max_digits=8, decimal_places=2)
     frete = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     desconto = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     valor_final = models.DecimalField(max_digits=8, decimal_places=2)
 
     def __str__(self):
-        return f"Pedido #{self.id_pedido} - {self.cliente.nome}"
+        comprador = self.cliente.nome if self.cliente else (self.nome_comprador or self.email_comprador or "Convidado")
+        return f"Pedido #{self.id_pedido} - {comprador}"
 
 
 class ItemPedido(models.Model):
