@@ -7,6 +7,7 @@ function Register() {
     const { register, signed } = useAuth();
 
     const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -26,7 +27,7 @@ function Register() {
             return;
         }
 
-        const res = await register(name, email, password);
+        const res = await register(name, phone, email, password);
 
         if (res.success) {
             navigate('/minha-conta', { replace: true });
@@ -56,6 +57,18 @@ function Register() {
                     </div>
 
                     <div className="mb-3">
+                        <label className="form-label fs-5 fw-bold">Telefone</label>
+                        <input
+                            type="text"
+                            className="form-control fs-5 border-grey rounded-0"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="11 99123-4567"
+                            required
+                        />
+                    </div>
+                    
+                    <div className="mb-3">
                         <label className="form-label fs-5 fw-bold">E-mail</label>
                         <input
                             type="email"
@@ -66,6 +79,7 @@ function Register() {
                             required
                         />
                     </div>
+
 
                     <div className="mb-4">
                         <label className="form-label fs-5 fw-bold">Senha</label>
