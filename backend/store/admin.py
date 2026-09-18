@@ -47,8 +47,12 @@ class PedidoAdmin(admin.ModelAdmin):
 
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
-    list_display = ('id_cliente', 'nome', 'email', 'telefone', 'pontos')
+    list_display = ('id_cliente', 'nome', 'get_email', 'telefone', 'pontos')
     search_fields = ('nome', 'email', 'telefone')
+
+    @admin.display(description='E-mail')
+    def get_email(self, obj):
+        return obj.user.email
 
 
 @admin.register(Cupom)
