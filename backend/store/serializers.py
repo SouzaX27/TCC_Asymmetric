@@ -1,3 +1,5 @@
+import re
+from django.contrib.auth.models import User
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -20,41 +22,49 @@ class ProdutoSerializer(serializers.ModelSerializer):
 
 
 class RegistrarClienteSerializer(serializers.ModelSerializer):
-    usuario = serializers.CharField(source='username', write_only=True)
-    senha = serializers.CharField(source='password', write_only=True)
-    nome = serializers.CharField(write_only=True)
-    telefone = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
 
     class Meta:
-        model = User
-        fields = ['usuario', 'email', 'senha', 'nome', 'telefone']
+        model = Cliente
+        fields = ['email', 'password', 'nome', 'telefone']
 
-    def validate_usuario(self, value):
+    # valida se o email já existe
+    def validate_email(self, value):
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Este nome de usuário já está em uso.")
+            raise serializers.ValidationError("Este e-mail já está cadastrado.")
         return value
 
-    def validate_senha(self, value):
-        try:
-            validate_password(value)
-        except DjangoValidationError as e:
-            raise serializers.ValidationError(list(e.messages))
-        return value
+    # validação do telefone
+    def validate_telefone(self, value):
+        if not value:
+            return value
+
+        # retira o q não é numero
+        apenas_numeros = re.sub(r'\D', '', value)
+
+        # verifica se possui exatos 11 dígitos (DDD + 9 dígitos)
+        if len(apenas_numeros) != 11:
+            raise serializers.ValidationError("O telefone deve conter exatos 11 dígitos (Ex: 11991234567).")
+
+        return apenas_numeros
 
     def create(self, validated_data):
+        email = validated_data.pop('email')
+        password = validated_data.pop('password')
         nome = validated_data.pop('nome')
         telefone = validated_data.pop('telefone', '')
 
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data.get('email', ''),
-            password=validated_data['password']
+        usuario = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password
         )
 
-        Cliente.objects.create(
-            user=user,
+        cliente = Cliente.objects.create(
+            user=usuario,
             nome=nome,
             telefone=telefone
         )
 
-        return user
+        return cliente

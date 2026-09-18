@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Sum
+from django.contrib.auth.models import User
 
 class Admin(models.Model):
     id_admin = models.AutoField(primary_key=True)
@@ -14,9 +15,8 @@ class Admin(models.Model):
 
 class Cliente(models.Model):
     id_cliente = models.AutoField(primary_key=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cliente')
     nome = models.CharField(max_length=255)
-    email = models.EmailField(max_length=255, unique=True)
-    senha = models.CharField(max_length=128)
     telefone = models.CharField(max_length=255, blank=True, null=True)
     pontos = models.IntegerField(default=0)
 
