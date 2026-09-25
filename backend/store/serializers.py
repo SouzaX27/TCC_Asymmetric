@@ -72,3 +72,27 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
         )
 
         return cliente
+
+
+class ClientePerfilSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email', read_only=True)
+
+    class Meta:
+        model = Cliente
+        fields = ['id_cliente', 'email', 'nome', 'telefone']
+
+    def validate_telefone(self, value):
+        if not value:
+            raise serializers.ValidationError("O telefone é obrigatório.")
+
+        apenas_numeros = re.sub(r'\D', '', value)
+
+        if len(apenas_numeros) != 11:
+            raise serializers.ValidationError("O telefone deve conter exatos 11 dígitos (Ex: 11991234567).")
+
+        # Verifica se o número já pertence a OUTRO cliente
+        cliente_atual = self.instance
+        if Cliente.objects.filter(telefone=apenas_numeros).exclude(pk=cliente_atual.pk).exists():
+            raise serializers.ValidationError("Este número de telefone já está em uso por outra conta.")
+
+        return apenas_numeros
