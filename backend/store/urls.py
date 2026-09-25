@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from .views import ProdutoViewSet, RegistrarClienteView
+from .views import ProdutoViewSet, RegistrarClienteView, MeView
 
 router = DefaultRouter()
 router.register(r'produtos', ProdutoViewSet)
@@ -16,4 +16,7 @@ urlpatterns = [
     # Rotas de Autenticação JWT
     path('usuarios/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('usuarios/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    # Rota protegida perfil
+    path('usuarios/me/', MeView.as_view(), name='usuario_me'),
 ]
