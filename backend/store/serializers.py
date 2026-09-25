@@ -38,7 +38,7 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
     # validação do telefone
     def validate_telefone(self, value):
         if not value:
-            return value
+            raise serializers.ValidationError("O telefone é obrigatório.")
 
         # retira o q não é numero
         apenas_numeros = re.sub(r'\D', '', value)
@@ -47,13 +47,17 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
         if len(apenas_numeros) != 11:
             raise serializers.ValidationError("O telefone deve conter exatos 11 dígitos (Ex: 11991234567).")
 
+        # verifica se o número já está sendo utilizado
+        if Cliente.objects.filter(telefone=apenas_numeros).exists():
+            raise serializers.ValidationError("Este número de telefone já está cadastrado.")
+
         return apenas_numeros
 
     def create(self, validated_data):
         email = validated_data.pop('email')
         password = validated_data.pop('password')
         nome = validated_data.pop('nome')
-        telefone = validated_data.pop('telefone', '')
+        telefone = validated_data.pop('telefone')
 
         usuario = User.objects.create_user(
             username=email,

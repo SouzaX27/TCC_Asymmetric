@@ -17,7 +17,7 @@ class Cliente(models.Model):
     id_cliente = models.AutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cliente')
     nome = models.CharField(max_length=255)
-    telefone = models.CharField(max_length=255, blank=True, null=True)
+    telefone = models.CharField(max_length=255)
     pontos = models.IntegerField(default=0)
 
     def __str__(self):
