@@ -9,7 +9,8 @@ from .models import (
     ItemPedido,
     Possui,
     ReciboPagamento,
-    Estoque
+    Estoque,
+    Colecao
 )
 
 
@@ -30,7 +31,7 @@ class PossuiInline(admin.TabularInline):
 
 @admin.register(Produto)
 class ProdutoAdmin(admin.ModelAdmin):
-    list_display = ('id_produto', 'nome', 'preco', 'imagem',  'admin')
+    list_display = ('id_produto', 'nome', 'preco', 'imagem',  'admin', 'colecao')
     search_fields = ('nome', 'descricao')
     list_filter = ('admin',)
     inlines = [VariacaoProdutoInline]
@@ -75,6 +76,10 @@ class ReciboPagamentoAdmin(admin.ModelAdmin):
     list_filter = ('metodo', 'status')
     search_fields = ('cliente__nome', 'recibo_id')
 
+@admin.register(Colecao)
+class ColecaoAdmin(admin.ModelAdmin):
+    list_display = ('id_colecao', 'nome', 'ativa', 'criada_em')
+    search_fields = ('nome',)
 
 
 
