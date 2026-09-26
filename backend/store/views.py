@@ -3,12 +3,24 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
-from .models import Produto
-from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer
+from .models import Produto, Colecao
+from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer
+
+class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Colecao.objects.filter(ativa=True)
+    serializer_class = ColecaoSerializer
 
 class ProdutoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
+
+    def get_queryset(self):
+        queryset = Produto.objects.all()
+        colecao_id = self.request.query_params.get('colecao')
+        
+        if colecao_id:
+            queryset = queryset.filter(colecao_id=colecao_id)
+            
+        return queryset
 
 class RegistrarClienteView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -39,3 +51,4 @@ class MeView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
