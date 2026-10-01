@@ -2,9 +2,10 @@ import re
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from .models import Produto, VariacaoProduto, Cliente, Colecao
+from .models import Produto, VariacaoProduto, Cliente, Colecao, Pedido, ItemPedido, Estoque
 
 class VariacaoProdutoSerializer(serializers.ModelSerializer):
     estoque_atual = serializers.IntegerField(read_only=True)
@@ -102,3 +103,99 @@ class ClientePerfilSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Este número de telefone já está em uso por outra conta.")
 
         return apenas_numeros
+
+
+
+class ItemPedidoSerializer(serializers.ModelSerializer):
+    # Expõe os detalhes da variação para leitura
+    variacao_nome = serializers.ReadOnlyField(source='variacao_produto.produto.nome')
+    tamanho = serializers.ReadOnlyField(source='variacao_produto.tamanho')
+
+    class Meta:
+        model = ItemPedido
+        fields = ['id_item', 'variacao_produto', 'variacao_nome', 'tamanho', 'quantidade', 'preco_unitario']
+        # preco_unitario será definido automaticamente com base no preço do produto no momento do checkout
+        extra_kwargs = {'preco_unitario': {'required': False}}
+
+
+class PedidoSerializer(serializers.ModelSerializer):
+    itens = ItemPedidoSerializer(many=True)
+
+    class Meta:
+        model = Pedido
+        fields = [
+            'id_pedido',
+            'cliente',
+            'cupom',
+            'nome_comprador',
+            'email_comprador',
+            'telefone_comprador',
+            'data_pedido',
+            'status',
+            'sub_total',
+            'frete',
+            'desconto',
+            'valor_final',
+            'itens'
+        ]
+        read_only_fields = ['id_pedido', 'data_pedido', 'sub_total', 'valor_final']
+
+    def create(self, validated_data):
+        itens_data = validated_data.pop('itens')
+        
+        # Garante que todas as operações (Pedido, Itens e Estoque) ocorram dentro de uma transação SQL
+        with transaction.atomic():
+            sub_total = 0
+            
+            # Se o utilizador estiver autenticado e for um Cliente, associa-o automaticamente
+            request = self.context.get('request')
+            if request and hasattr(request.user, 'cliente'):
+                validated_data['cliente'] = request.user.cliente
+
+            # Cria o Pedido inicial sem os totais definidos
+            frete = validated_data.get('frete', 0)
+            desconto = validated_data.get('desconto', 0)
+            
+            pedido = Pedido.objects.create(
+                sub_total=0,
+                valor_final=0,
+                **validated_data
+            )
+
+            # Processa cada item do pedido
+            for item_data in itens_data:
+                variacao = item_data['variacao_produto']
+                quantidade = item_data['quantidade']
+                preco_unitario = variacao.produto.preco
+
+                # 1. Verifica se há estoque suficiente
+                if variacao.estoque_atual < quantidade:
+                    raise serializers.ValidationError(
+                        f"Estoque insuficiente para {variacao.produto.nome} ({variacao.tamanho}). Disponível: {variacao.estoque_atual}"
+                    )
+
+                # 2. Cria o ItemPedido congelando o preço unitário
+                ItemPedido.objects.create(
+                    pedido=pedido,
+                    variacao_produto=variacao,
+                    quantidade=quantidade,
+                    preco_unitario=preco_unitario
+                )
+
+                # 3. Dá baixa no Estoque registrando uma 'Saida'
+                Estoque.objects.create(
+                    variacao_produto=variacao,
+                    pedido=pedido,
+                    quantidade=quantidade,
+                    tipo='Saida',
+                    motivo=f"Venda - Pedido #{pedido.id_pedido}"
+                )
+
+                sub_total += preco_unitario * quantidade
+
+            # Atualiza os totais calculados no Pedido
+            pedido.sub_total = sub_total
+            pedido.valor_final = sub_total + frete - desconto
+            pedido.save()
+
+            return pedido

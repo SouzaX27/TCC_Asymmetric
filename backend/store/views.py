@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
-from .models import Produto, Colecao
-from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer
+from .models import Produto, Colecao, Pedido
+from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer
 
 class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Colecao.objects.filter(ativa=True)
@@ -52,3 +52,22 @@ class MeView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class PedidoViewSet(viewsets.ModelViewSet):
+    serializer_class = PedidoSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        # Se for admin, pode ver todos os pedidos
+        if user.is_staff:
+            return Pedido.objects.all()
+        # Se for cliente autenticado, vê apenas os seus próprios pedidos
+        if hasattr(user, 'cliente'):
+            return Pedido.objects.filter(cliente=user.cliente)
+        # Se convidado, não lista históricos
+        return Pedido.objects.none()
+
+    def get_permissions(self):
+        # Permite que convidados criem pedidos (POST), mas exige login para listar/detalhar
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
