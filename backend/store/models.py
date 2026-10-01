@@ -36,6 +36,10 @@ class Cupom(models.Model):
     quantidade_disponivel = models.IntegerField(default=0)
     status = models.CharField(max_length=30)
 
+    class Meta:
+        verbose_name = 'Cupom'
+        verbose_name_plural = 'Cupons'
+
     def __str__(self):
         return self.codigo
 
@@ -45,6 +49,10 @@ class Colecao(models.Model):
     descricao = models.TextField(blank=True, null=True)
     ativa = models.BooleanField(default=True)
     criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Coleção'
+        verbose_name_plural = 'Coleções'
 
     def __str__(self):
         return self.nome
