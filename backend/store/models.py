@@ -84,7 +84,7 @@ class VariacaoProduto(models.Model):
     tamanho = models.CharField(max_length=10)
 
     def __str__(self):
-        return f"{self.produto.nome} - Tam: {self.tamanho}"
+        return f"{self.produto.nome} {self.produto.cor} - Tam: {self.tamanho}"
 
     @property
     def estoque_atual(self):
@@ -123,20 +123,23 @@ class Pedido(models.Model):
 
 class ItemPedido(models.Model):
     id_item = models.AutoField(primary_key=True)
-    variacao_produto = models.ForeignKey(VariacaoProduto, on_delete=models.CASCADE, db_column='fk_variacao_produto_id')
+    pedido = models.ForeignKey(
+        Pedido, 
+        on_delete=models.CASCADE, 
+        related_name='itens', 
+        db_column='fk_pedido_id'
+    )
+    variacao_produto = models.ForeignKey(
+        VariacaoProduto, 
+        on_delete=models.CASCADE, 
+        db_column='fk_variacao_produto_id'
+    )
     quantidade = models.IntegerField(default=1)
     preco_unitario = models.DecimalField(max_digits=8, decimal_places=2)
 
     def __str__(self):
-        return f"Item {self.id_item} (Qtd: {self.quantidade})"
+        return f"Item #{self.id_item} - Pedido #{self.pedido.id_pedido if self.pedido else 'S/N'}"
 
-
-class Possui(models.Model):
-    """
-    Tabela intermediária liga Pedido ao ItemPedido (Relacionamento N:N)
-    """
-    pedido = models.ForeignKey(Pedido, on_delete=models.SET_NULL, null=True, db_column='fk_pedido_id')
-    item_pedido = models.ForeignKey(ItemPedido, on_delete=models.SET_NULL, null=True, db_column='fk_item_pedido_id')
 
 
 class ReciboPagamento(models.Model):
@@ -177,4 +180,4 @@ class Estoque(models.Model):
     data_movimentacao = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Movimentação #{self.id_estoque} - {self.tipo} ({self.quantidade}x)"
+        return f"Movimentação #{self.id_estoque} - {self.tipo} ({self.quantidade}x {self.variacao_produto})"

@@ -7,7 +7,7 @@ from .models import (
     VariacaoProduto,
     Pedido,
     ItemPedido,
-    Possui,
+    # Possui,
     ReciboPagamento,
     Estoque,
     Colecao
@@ -20,13 +20,16 @@ from .models import (
 class VariacaoProdutoInline(admin.TabularInline):
     model = VariacaoProduto
     extra = 1
+    readonly_fields = ('estoque_atual',)
 
 
-class PossuiInline(admin.TabularInline):
-    model = Possui
+# class PossuiInline(admin.TabularInline):
+#     model = Possui
+#     extra = 1
+
+class ItemPedidoInline(admin.TabularInline):
+    model = ItemPedido
     extra = 1
-
-
 
 
 @admin.register(Produto)
@@ -37,13 +40,21 @@ class ProdutoAdmin(admin.ModelAdmin):
     inlines = [VariacaoProdutoInline]
 
 
+@admin.register(VariacaoProduto)
+class VariacaoProdutoAdmin(admin.ModelAdmin):
+    list_display = ('produto', 'tamanho', 'estoque_atual')
+    list_filter = ('produto__colecao', 'tamanho')
+    search_fields = ('produto__nome',)
+    readonly_fields = ('estoque_atual',)
+
+
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
     list_display = ('id_pedido', 'cliente', 'status', 'valor_final', 'data_pedido')
     list_filter = ('status', 'data_pedido')
     search_fields = ('cliente__nome', 'cliente__email')
     readonly_fields = ('data_pedido',)
-    inlines = [PossuiInline]
+    inlines = [ItemPedidoInline]
 
 
 @admin.register(Cliente)
@@ -84,5 +95,5 @@ class ColecaoAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Admin)
-admin.site.register(VariacaoProduto)
+# admin.site.register(VariacaoProduto)
 admin.site.register(ItemPedido)
