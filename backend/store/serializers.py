@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from .models import Produto, VariacaoProduto, Cliente, Colecao, Pedido, ItemPedido, Estoque
+from .models import Produto, VariacaoProduto, Cliente, Colecao, Pedido, ItemPedido, Estoque, Cupom
 
 class VariacaoProdutoSerializer(serializers.ModelSerializer):
     estoque_atual = serializers.IntegerField(read_only=True)
@@ -138,43 +138,44 @@ class PedidoSerializer(serializers.ModelSerializer):
             'valor_final',
             'itens'
         ]
-        read_only_fields = ['id_pedido', 'data_pedido', 'sub_total', 'valor_final']
+        read_only_fields = ['id_pedido', 'data_pedido', 'sub_total', 'desconto', 'valor_final']
 
     def create(self, validated_data):
         itens_data = validated_data.pop('itens')
+        cupom = validated_data.get('cupom', None)
         
-        # Garante que todas as operações (Pedido, Itens e Estoque) ocorram dentro de uma transação SQL
+        # Garante que todas as operações (Pedido, Itens, Estoque e Cupom) ocorram dentro de uma transação SQL
         with transaction.atomic():
-            sub_total = 0
-            
-            # Se o utilizador estiver autenticado e for um Cliente, associa-o automaticamente
+            # associa o cliente se estiver autenticado
             request = self.context.get('request')
             if request and hasattr(request.user, 'cliente'):
                 validated_data['cliente'] = request.user.cliente
 
-            # Cria o Pedido inicial sem os totais definidos
             frete = validated_data.get('frete', 0)
-            desconto = validated_data.get('desconto', 0)
-            
+
+            # cria o Pedido inicial zerado para obter o id_pedido
             pedido = Pedido.objects.create(
                 sub_total=0,
+                desconto=0,
                 valor_final=0,
                 **validated_data
             )
 
-            # Processa cada item do pedido
+            sub_total = 0
+
+            # processa cada item do pedido, valida estoque e calcula o subtotal
             for item_data in itens_data:
                 variacao = item_data['variacao_produto']
                 quantidade = item_data['quantidade']
                 preco_unitario = variacao.produto.preco
 
-                # 1. Verifica se há estoque suficiente
+                # verifica estoque suficiente
                 if variacao.estoque_atual < quantidade:
                     raise serializers.ValidationError(
                         f"Estoque insuficiente para {variacao.produto.nome} ({variacao.tamanho}). Disponível: {variacao.estoque_atual}"
                     )
 
-                # 2. Cria o ItemPedido congelando o preço unitário
+                # cria o ItemPedido
                 ItemPedido.objects.create(
                     pedido=pedido,
                     variacao_produto=variacao,
@@ -182,7 +183,7 @@ class PedidoSerializer(serializers.ModelSerializer):
                     preco_unitario=preco_unitario
                 )
 
-                # 3. Dá baixa no Estoque registrando uma 'Saida'
+                # da baixa no Estoque registando a 'Saida'
                 Estoque.objects.create(
                     variacao_produto=variacao,
                     pedido=pedido,
@@ -193,9 +194,48 @@ class PedidoSerializer(serializers.ModelSerializer):
 
                 sub_total += preco_unitario * quantidade
 
-            # Atualiza os totais calculados no Pedido
+            # processa e valida o Cupom se tiver sido enviado
+            valor_desconto = 0
+            if cupom:
+                valido, mensagem = cupom.e_valido(sub_total)
+                if not valido:
+                    raise serializers.ValidationError({"cupom": mensagem})
+
+                valor_desconto = cupom.calcular_desconto(sub_total)
+
+                # retira 1 na quantidade disponível do cupom
+                cupom.quantidade_disponivel -= 1
+                
+                # se zerar a quantidade, altera o status para 'Inativo'
+                if cupom.quantidade_disponivel <= 0:
+                    cupom.status = 'Inativo'
+
+                cupom.save()
+
+            # atualiza os totais calculados no Pedido
             pedido.sub_total = sub_total
-            pedido.valor_final = sub_total + frete - desconto
+            pedido.desconto = valor_desconto
+            pedido.valor_final = max(0, sub_total + frete - valor_desconto)
             pedido.save()
 
             return pedido
+
+
+class ValidarCupomInputSerializer(serializers.Serializer):
+    codigo = serializers.CharField(max_length=50, required=True)
+    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, required=True)
+
+class CupomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cupom
+        fields = [
+            'id_cupom',
+            'codigo',
+            'desconto',
+            'tipo_desconto',
+            'valor_minimo',
+            'data_inicio',
+            'data_expiracao',
+            'quantidade_disponivel',
+            'status'
+        ]

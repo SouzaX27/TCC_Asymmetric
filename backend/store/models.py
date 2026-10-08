@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Sum
+from django.utils import timezone
 from django.contrib.auth.models import User
 
 class Admin(models.Model):
@@ -25,16 +26,34 @@ class Cliente(models.Model):
 
 
 class Cupom(models.Model):
+    TIPO_DESCONTO_CHOICES = [
+        ('fixo', 'Valor Fixo (R$)'),
+        ('porcentagem', 'Porcentagem (%)'),
+    ]
+
+    STATUS_CHOICES = [
+        ('Ativo', 'Ativo'),
+        ('Inativo', 'Inativo'),
+    ]
+
     id_cupom = models.AutoField(primary_key=True)
-    admin = models.ForeignKey(Admin, on_delete=models.CASCADE, db_column='fk_admin_id')
+    admin = models.ForeignKey('Admin', on_delete=models.CASCADE, db_column='fk_admin_id')
     codigo = models.CharField(max_length=50, unique=True)
     desconto = models.DecimalField(max_digits=8, decimal_places=2)
-    tipo_desconto = models.CharField(max_length=50)
+    tipo_desconto = models.CharField(
+        max_length=20, 
+        choices=TIPO_DESCONTO_CHOICES, 
+        default='fixo'
+    )
     valor_minimo = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     data_inicio = models.DateTimeField()
     data_expiracao = models.DateTimeField()
     quantidade_disponivel = models.IntegerField(default=0)
-    status = models.CharField(max_length=30)
+    status = models.CharField(
+        max_length=30, 
+        choices=STATUS_CHOICES, 
+        default='Ativo'
+    )
 
     class Meta:
         verbose_name = 'Cupom'
@@ -42,6 +61,50 @@ class Cupom(models.Model):
 
     def __str__(self):
         return self.codigo
+
+    def e_valido(self, subtotal_pedido):
+        """Valida se o cupom atende a todas as regras de negócio."""
+        agora = timezone.now()
+
+        # verifica se já está Inativo
+        if self.status != 'Ativo':
+            return False, "Este cupom não está ativo."
+
+        # verifica se expirou por data
+        if agora > self.data_expiracao:
+            if self.status != 'Inativo':
+                self.status = 'Inativo'
+                self.save(update_fields=['status']) # Atualiza automaticamente no banco
+            return False, "Este cupom já expirou."
+
+        # verifica se ainda não começou
+        if agora < self.data_inicio:
+            return False, "Este cupom ainda não está válido."
+
+        # verifica se esgotou a quantidade
+        if self.quantidade_disponivel <= 0:
+            if self.status != 'Inativo':
+                self.status = 'Inativo'
+                self.save(update_fields=['status']) # atualiza automaticamente no banco
+            return False, "Esgotou o limite de usos deste cupom."
+
+        # verifica valor minimo do carrinho
+        if subtotal_pedido < self.valor_minimo:
+            return False, f"O valor mínimo do pedido para este cupom é R$ {self.valor_minimo:.2f}."
+
+        return True, "Cupom válido."
+
+    def calcular_desconto(self, subtotal_pedido):
+        """Calcula o desconto de acordo com o tipo"""
+        subtotal_float = float(subtotal_pedido)
+        desconto_float = float(self.desconto)
+
+        if self.tipo_desconto == 'porcentagem':
+            valor_desconto = (subtotal_float * desconto_float) / 100.0
+        else:
+            valor_desconto = desconto_float
+
+        return min(valor_desconto, subtotal_float)
 
 class Colecao(models.Model):
     id_colecao = models.AutoField(primary_key=True)
@@ -99,12 +162,9 @@ class VariacaoProduto(models.Model):
 
 class Pedido(models.Model):
     id_pedido = models.AutoField(primary_key=True)
-    cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_cliente_id') # null true para permitir compra convidado
+    cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_cliente_id')
     cupom = models.ForeignKey(Cupom, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_cupom_id')
-
-    # admin = models.ForeignKey(Admin, on_delete=models.SET_NULL, null=True, blank=True, db_column='fk_admin_id')
     
-    # Dados de contato do comprador (essenciais para convidados)
     nome_comprador = models.CharField(max_length=150, blank=True, null=True)
     email_comprador = models.EmailField(blank=True, null=True)
     telefone_comprador = models.CharField(max_length=20, blank=True, null=True)
@@ -115,6 +175,13 @@ class Pedido(models.Model):
     frete = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     desconto = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     valor_final = models.DecimalField(max_digits=8, decimal_places=2)
+
+    # futura integração de pagamento - Mercado Pago
+    metodo_pagamento = models.CharField(max_length=50, blank=True, null=True)
+    id_transacao_gateway = models.CharField(max_length=100, blank=True, null=True)
+    qr_code_pix = models.TextField(blank=True, null=True)
+    qr_code_base64 = models.TextField(blank=True, null=True)
+    ticket_url = models.URLField(max_length=500, blank=True, null=True)
 
     def __str__(self):
         comprador = self.cliente.nome if self.cliente else (self.nome_comprador or self.email_comprador or "Convidado")

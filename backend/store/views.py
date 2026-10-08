@@ -1,9 +1,10 @@
 # from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
-from .models import Produto, Colecao, Pedido
+from .models import Produto, Colecao, Pedido, Cupom
 from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer
 
 class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
@@ -71,3 +72,42 @@ class PedidoViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
+
+
+class CupomViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Cupom.objects.filter(status__iexact='Ativo')
+    permission_classes = [permissions.AllowAny]
+
+    @action(detail=False, methods=['post'], url_path='validar')
+    def validar_cupom(self, request):
+        codigo = request.data.get('codigo', '').strip()
+        subtotal = request.data.get('subtotal', 0)
+
+        try:
+            subtotal = float(subtotal)
+        except (ValueError, TypeError):
+            return Response({"error": "Subtotal inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not codigo:
+            return Response({"error": "Informe o código do cupom."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            cupom = Cupom.objects.get(codigo__iexact=codigo)
+        except Cupom.DoesNotExist:
+            return Response({"error": "Cupom não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        valido, mensagem = cupom.e_valido(subtotal)
+        if not valido:
+            return Response({"error": mensagem}, status=status.HTTP_400_BAD_REQUEST)
+
+        valor_desconto = cupom.calcular_desconto(subtotal)
+
+        return Response({
+            "valido": True,
+            "mensagem": "Cupom aplicado com sucesso!",
+            "id_cupom": cupom.id_cupom,
+            "codigo": cupom.codigo,
+            "tipo_desconto": cupom.tipo_desconto,
+            "valor_desconto_calculado": round(valor_desconto, 2),
+            "novo_subtotal": round(subtotal - valor_desconto, 2)
+        }, status=status.HTTP_200_OK)
