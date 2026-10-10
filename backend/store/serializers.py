@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from django.contrib.auth.models import User
@@ -146,36 +147,37 @@ class PedidoSerializer(serializers.ModelSerializer):
         
         # Garante que todas as operações (Pedido, Itens, Estoque e Cupom) ocorram dentro de uma transação SQL
         with transaction.atomic():
-            # associa o cliente se estiver autenticado
+            # Associa o cliente se estiver autenticado
             request = self.context.get('request')
             if request and hasattr(request.user, 'cliente'):
                 validated_data['cliente'] = request.user.cliente
 
-            frete = validated_data.get('frete', 0)
+            # Converte o frete para Decimal
+            frete = Decimal(str(validated_data.get('frete', 0)))
 
-            # cria o Pedido inicial zerado para obter o id_pedido
+            # Cria o Pedido inicial zerado para obter o id_pedido
             pedido = Pedido.objects.create(
-                sub_total=0,
-                desconto=0,
-                valor_final=0,
+                sub_total=Decimal('0.00'),
+                desconto=Decimal('0.00'),
+                valor_final=Decimal('0.00'),
                 **validated_data
             )
 
-            sub_total = 0
+            sub_total = Decimal('0.00')
 
-            # processa cada item do pedido, valida estoque e calcula o subtotal
+            # Processa cada item do pedido, valida estoque e calcula o subtotal
             for item_data in itens_data:
                 variacao = item_data['variacao_produto']
                 quantidade = item_data['quantidade']
                 preco_unitario = variacao.produto.preco
 
-                # verifica estoque suficiente
+                # Verifica estoque suficiente
                 if variacao.estoque_atual < quantidade:
                     raise serializers.ValidationError(
                         f"Estoque insuficiente para {variacao.produto.nome} ({variacao.tamanho}). Disponível: {variacao.estoque_atual}"
                     )
 
-                # cria o ItemPedido
+                # Cria o ItemPedido
                 ItemPedido.objects.create(
                     pedido=pedido,
                     variacao_produto=variacao,
@@ -183,7 +185,7 @@ class PedidoSerializer(serializers.ModelSerializer):
                     preco_unitario=preco_unitario
                 )
 
-                # da baixa no Estoque registando a 'Saida'
+                # Dá baixa no Estoque registando a 'Saida'
                 Estoque.objects.create(
                     variacao_produto=variacao,
                     pedido=pedido,
@@ -192,30 +194,31 @@ class PedidoSerializer(serializers.ModelSerializer):
                     motivo=f"Venda - Pedido #{pedido.id_pedido}"
                 )
 
-                sub_total += preco_unitario * quantidade
+                sub_total += Decimal(str(preco_unitario)) * quantidade
 
-            # processa e valida o Cupom se tiver sido enviado
-            valor_desconto = 0
+            # Processa e valida o Cupom se tiver sido enviado
+            valor_desconto = Decimal('0.00')
             if cupom:
                 valido, mensagem = cupom.e_valido(sub_total)
                 if not valido:
                     raise serializers.ValidationError({"cupom": mensagem})
 
-                valor_desconto = cupom.calcular_desconto(sub_total)
+                # Garante que o retorno do cálculo do desconto é do tipo Decimal
+                valor_desconto = Decimal(str(cupom.calcular_desconto(sub_total)))
 
-                # retira 1 na quantidade disponível do cupom
+                # Retira 1 na quantidade disponível do cupom
                 cupom.quantidade_disponivel -= 1
                 
-                # se zerar a quantidade, altera o status para 'Inativo'
+                # Se zerar a quantidade, altera o status para 'Inativo'
                 if cupom.quantidade_disponivel <= 0:
                     cupom.status = 'Inativo'
 
                 cupom.save()
 
-            # atualiza os totais calculados no Pedido
+            # Atualiza os totais calculados no Pedido sem misturar tipos
             pedido.sub_total = sub_total
             pedido.desconto = valor_desconto
-            pedido.valor_final = max(0, sub_total + frete - valor_desconto)
+            pedido.valor_final = max(Decimal('0.00'), sub_total + frete - valor_desconto)
             pedido.save()
 
             return pedido
@@ -239,3 +242,18 @@ class CupomSerializer(serializers.ModelSerializer):
             'quantidade_disponivel',
             'status'
         ]
+
+
+class FreteItemInputSerializer(serializers.Serializer):
+    variacao_produto = serializers.IntegerField(min_value=1)
+    quantidade = serializers.IntegerField(min_value=1)
+
+class CalcularFreteInputSerializer(serializers.Serializer):
+    cep_destino = serializers.CharField(max_length=9, min_length=8)
+    itens = FreteItemInputSerializer(many=True)
+
+    def validate_cep_destino(self, value):
+        cep_limpo = value.replace('-', '').replace(' ', '')
+        if not cep_limpo.isdigit() or len(cep_limpo) != 8:
+            raise serializers.ValidationError("CEP inválido. Forneça exatamente 8 dígitos numéricos.")
+        return cep_limpo
