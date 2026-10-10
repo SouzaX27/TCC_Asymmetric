@@ -196,12 +196,28 @@ class Pedido(models.Model):
     email_comprador = models.EmailField(blank=True, null=True)
     telefone_comprador = models.CharField(max_length=20, blank=True, null=True)
 
+    # campos de entrega
+    cep_entrega = models.CharField(max_length=9, null=True, blank=True) # retirar o null=true, blank=true
+    endereco_entrega = models.CharField(max_length=255, null=True, blank=True) # retirar o null=true, blank=true
+    numero_entrega = models.CharField(max_length=20, null=True, blank=True) # retirar o null=true, blank=true
+    complemento_entrega = models.CharField(max_length=100, blank=True, null=True)
+    bairro_entrega = models.CharField(max_length=100, null=True, blank=True) # retirar o null=true, blank=true
+    cidade_entrega = models.CharField(max_length=100, null=True, blank=True) # retirar o null=true, blank=true
+    estado_entrega = models.CharField(max_length=2, null=True, blank=True)  # retirar o null=true, blank=true
+
+    # campos do frete
+    servico_frete_id = models.IntegerField(help_text="ID da transportadora/serviço no Melhor Envio", null=True, blank=True) # retirar o null=true, blank=true
+    servico_frete_nome = models.CharField(max_length=50, help_text="Ex: PAC, SEDEX", null=True, blank=True) # retirar o null=true, blank=true
+    prazo_frete_dias = models.IntegerField(null=True, blank=True) # retirar o null=true, blank=true
+
+    #  infos do pedido
     data_pedido = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=30, default='Pendente')
     sub_total = models.DecimalField(max_digits=8, decimal_places=2)
     frete = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     desconto = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     valor_final = models.DecimalField(max_digits=8, decimal_places=2)
+
 
     # futura integração de pagamento - Mercado Pago
     metodo_pagamento = models.CharField(max_length=50, blank=True, null=True)

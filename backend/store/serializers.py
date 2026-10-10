@@ -122,24 +122,57 @@ class ItemPedidoSerializer(serializers.ModelSerializer):
 class PedidoSerializer(serializers.ModelSerializer):
     itens = ItemPedidoSerializer(many=True)
 
+    # garante a obrigatoriedade na enttrada da api (Checkout)
+    cep_entrega = serializers.CharField(max_length=9, required=True, allow_blank=False)
+    endereco_entrega = serializers.CharField(max_length=255, required=True, allow_blank=False)
+    numero_entrega = serializers.CharField(max_length=20, required=True, allow_blank=False)
+    bairro_entrega = serializers.CharField(max_length=100, required=True, allow_blank=False)
+    cidade_entrega = serializers.CharField(max_length=100, required=True, allow_blank=False)
+    estado_entrega = serializers.CharField(max_length=2, required=True, allow_blank=False)
+    
+    servico_frete_id = serializers.IntegerField(required=True)
+    servico_frete_nome = serializers.CharField(max_length=50, required=True, allow_blank=False)
+    prazo_frete_dias = serializers.IntegerField(required=True)
+
     class Meta:
-        model = Pedido
-        fields = [
-            'id_pedido',
-            'cliente',
-            'cupom',
-            'nome_comprador',
-            'email_comprador',
-            'telefone_comprador',
-            'data_pedido',
-            'status',
-            'sub_total',
-            'frete',
-            'desconto',
-            'valor_final',
-            'itens'
-        ]
-        read_only_fields = ['id_pedido', 'data_pedido', 'sub_total', 'desconto', 'valor_final']
+            model = Pedido
+            fields = [
+                'id_pedido',
+                'cliente',
+                'cupom',
+                'nome_comprador',
+                'email_comprador',
+                'telefone_comprador',
+                'cep_entrega',
+                'endereco_entrega',
+                'numero_entrega',
+                'complemento_entrega',
+                'bairro_entrega',
+                'cidade_entrega',
+                'estado_entrega',
+                'servico_frete_id',
+                'servico_frete_nome',
+                'prazo_frete_dias',
+                'metodo_pagamento',
+                'data_pedido',
+                'status',
+                'sub_total',
+                'frete',
+                'desconto',
+                'valor_final',
+                'itens'
+            ]
+            read_only_fields = [
+                'id_pedido', 
+                'data_pedido', 
+                'sub_total', 
+                'desconto', 
+                'valor_final',
+                'id_transacao_gateway',
+                'qr_code_pix',
+                'qr_code_base64',
+                'ticket_url'
+            ]
 
     def create(self, validated_data):
         itens_data = validated_data.pop('itens')
