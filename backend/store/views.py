@@ -4,8 +4,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
-from .models import Produto, Colecao, Pedido, Cupom
-from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer
+from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer, CalcularFreteInputSerializer
+from .services import calcular_frete_melhor_envio
+from .models import Produto, VariacaoProduto, Colecao, Pedido, Cupom
 
 class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Colecao.objects.filter(ativa=True)
@@ -110,4 +111,46 @@ class CupomViewSet(viewsets.ReadOnlyModelViewSet):
             "tipo_desconto": cupom.tipo_desconto,
             "valor_desconto_calculado": round(valor_desconto, 2),
             "novo_subtotal": round(subtotal - valor_desconto, 2)
+        }, status=status.HTTP_200_OK)
+
+
+class CalcularFreteView(APIView):
+    def post(self, request):
+        serializer = CalcularFreteInputSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        cep_destino = serializer.validated_data['cep_destino']
+        itens_raw = serializer.validated_data['itens']
+
+        # Extrai os IDs das variações solicitadas
+        ids_variacoes = [item['variacao_produto'] for item in itens_raw]
+
+        # Consulta SQL única trazendo variação + produto
+        variacoes_db = VariacaoProduto.objects.filter(id_variacao__in=ids_variacoes).select_related('produto')
+        mapa_variacoes = {v.id_variacao: v for v in variacoes_db}
+
+        # Valida existência de todos os itens no banco
+        itens_com_objetos = []
+        for item in itens_raw:
+            var_id = item['variacao_produto']
+            if var_id not in mapa_variacoes:
+                return Response(
+                    {"erro": f"Variação de produto #{var_id} não encontrada."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            itens_com_objetos.append({
+                'variacao_obj': mapa_variacoes[var_id],
+                'quantidade': item['quantidade']
+            })
+
+        # Executa a cotação no serviço externo
+        opcoes_frete, erro = calcular_frete_melhor_envio(cep_destino, itens_com_objetos)
+
+        if erro:
+            return Response({"mensagem": erro}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response({
+            "cep_destino": cep_destino,
+            "opcoes": opcoes_frete
         }, status=status.HTTP_200_OK)

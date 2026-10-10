@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.db.models import Sum
 from django.utils import timezone
@@ -17,8 +18,8 @@ class Admin(models.Model):
 class Cliente(models.Model):
     id_cliente = models.AutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cliente')
-    nome = models.CharField(max_length=255)
     telefone = models.CharField(max_length=255)
+    nome = models.CharField(max_length=255)
     pontos = models.IntegerField(default=0)
 
     def __str__(self):
@@ -95,16 +96,16 @@ class Cupom(models.Model):
         return True, "Cupom válido."
 
     def calcular_desconto(self, subtotal_pedido):
-        """Calcula o desconto de acordo com o tipo"""
-        subtotal_float = float(subtotal_pedido)
-        desconto_float = float(self.desconto)
+        """Calcula o valor do desconto mantendo a precisão monetária em Decimal."""
+        subtotal = Decimal(str(subtotal_pedido))
+        desconto_cadastrado = Decimal(str(self.desconto))
 
         if self.tipo_desconto == 'porcentagem':
-            valor_desconto = (subtotal_float * desconto_float) / 100.0
+            valor_desconto = (subtotal * desconto_cadastrado) / Decimal('100.0')
         else:
-            valor_desconto = desconto_float
+            valor_desconto = desconto_cadastrado
 
-        return min(valor_desconto, subtotal_float)
+        return min(valor_desconto, subtotal)
 
 class Colecao(models.Model):
     id_colecao = models.AutoField(primary_key=True)
@@ -134,6 +135,32 @@ class Produto(models.Model):
         null=True, 
         blank=True, 
         related_name='produtos'
+    )
+    
+    # Campos necessários para cotação de frete (Melhor Envio)
+    peso = models.DecimalField(
+        max_digits=5, 
+        decimal_places=3, 
+        default=Decimal('0.350'),
+        help_text="Peso em kg (ex: 0.350 para 350g)"
+    )
+    altura = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('5.00'),
+        help_text="Altura em cm"
+    )
+    largura = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('25.00'),
+        help_text="Largura em cm"
+    )
+    comprimento = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('35.00'),
+        help_text="Comprimento em cm"
     )
 
     def __str__(self):

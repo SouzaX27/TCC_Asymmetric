@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,11 +21,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&711t5q)9e8bo_*oblpv+f!li3tu%39bym-32e@s5-#lbjjy3w'
+load_dotenv()
+# Pega a chave do .env. Se não encontrar nada, lança um aviso ou usa None
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Garante que o projeto não suba se a SECRET_KEY estiver vazia no .env
+if not SECRET_KEY:
+    raise ValueError("A variável SECRET_KEY não foi configurada no arquivo .env")
+
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
+
+
+MELHOR_ENVIO_TOKEN = os.getenv('MELHOR_ENVIO_TOKEN')
+MELHOR_ENVIO_URL = os.getenv('MELHOR_ENVIO_URL', 'https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate')
+CEP_ORIGEM = os.getenv('CEP_ORIGEM', '18274030')
+
 
 ALLOWED_HOSTS = []
 
@@ -149,3 +160,4 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "https://hoppscotch.io",    # Web App do Hoppscotch
 ]
+
