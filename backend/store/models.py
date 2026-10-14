@@ -2,6 +2,7 @@ from decimal import Decimal
 from django.db import models
 from django.db.models import Sum
 from django.utils import timezone
+from django.utils.text import slugify
 from django.contrib.auth.models import User
 
 class Admin(models.Model):
@@ -114,6 +115,13 @@ class Colecao(models.Model):
     ativa = models.BooleanField(default=True)
     criada_em = models.DateTimeField(auto_now_add=True)
 
+    slug = models.SlugField(unique=True, max_length=150, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.nome)
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = 'Coleção'
         verbose_name_plural = 'Coleções'
@@ -136,6 +144,15 @@ class Produto(models.Model):
         blank=True, 
         related_name='produtos'
     )
+
+    slug = models.SlugField(unique=True, max_length=255, blank=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            # Junta o nome com a cor (ex: "Camiseta Leão Preto")
+            texto_base = f"{self.nome} {self.cor}" if self.cor else self.nome
+            self.slug = slugify(texto_base)
+        super().save(*args, **kwargs)
     
     # Campos necessários para cotação de frete (Melhor Envio)
     peso = models.DecimalField(
