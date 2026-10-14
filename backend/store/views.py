@@ -11,16 +11,18 @@ from .models import Produto, VariacaoProduto, Colecao, Pedido, Cupom
 class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Colecao.objects.filter(ativa=True)
     serializer_class = ColecaoSerializer
+    lookup_field = 'slug'
 
 class ProdutoViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProdutoSerializer
+    lookup_field = 'slug'
 
     def get_queryset(self):
         queryset = Produto.objects.all()
-        colecao_id = self.request.query_params.get('colecao')
+        colecao_slug = self.request.query_params.get('colecao')
         
-        if colecao_id:
-            queryset = queryset.filter(colecao_id=colecao_id)
+        if colecao_slug:
+            queryset = queryset.filter(colecao__id=colecao_slug)
             
         return queryset
 
