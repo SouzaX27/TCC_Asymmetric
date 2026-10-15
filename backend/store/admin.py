@@ -4,10 +4,10 @@ from .models import (
     Cliente,
     Cupom,
     Produto,
+    ImagemProduto,
     VariacaoProduto,
     Pedido,
     ItemPedido,
-    # Possui,
     ReciboPagamento,
     Estoque,
     Colecao
@@ -23,21 +23,22 @@ class VariacaoProdutoInline(admin.TabularInline):
     readonly_fields = ('estoque_atual',)
 
 
-# class PossuiInline(admin.TabularInline):
-#     model = Possui
-#     extra = 1
-
 class ItemPedidoInline(admin.TabularInline):
     model = ItemPedido
     extra = 1
 
+class ImagemProdutoInline(admin.TabularInline):
+    model = ImagemProduto
+    extra = 3
+
 
 @admin.register(Produto)
 class ProdutoAdmin(admin.ModelAdmin):
-    list_display = ('id_produto', 'nome', 'preco', 'imagem',  'admin', 'colecao')
+    list_display = ('id_produto', 'nome', 'preco', 'slug', 'admin', 'colecao')
     search_fields = ('nome', 'descricao')
     list_filter = ('admin',)
-    inlines = [VariacaoProdutoInline]
+    prepopulated_fields = {'slug': ('nome',)}
+    inlines = [VariacaoProdutoInline, ImagemProdutoInline]
 
 
 @admin.register(VariacaoProduto)
