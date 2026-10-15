@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Navbar as BootstrapNavbar, Offcanvas } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { Navbar as BootstrapNavbar, Offcanvas, Collapse } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom'; 
+import api from '../../services/api'
 
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -13,9 +14,22 @@ import cartIcon from '../../assets/images/cart.svg';
 
 function Navbar() {
     const [showMenu, setShowMenu] = useState(false);
+    const [colecoes, setColecoes] = useState([]); 
     const { totalItems } = useCart();
     const { signed, user, logout } = useAuth();
     const navigate = useNavigate();
+
+    const [openColecoes, setOpenColecoes] = useState(false);
+
+    useEffect(() => {
+        api.get('colecoes/')
+            .then(response => {
+                setColecoes(response.data);
+            })
+            .catch(error => {
+                console.error("Erro ao carregar coleções:", error);
+            });
+    }, []);
 
     const handleClose = () => setShowMenu(false);
     const handleShow = () => setShowMenu(true);
@@ -79,13 +93,47 @@ function Navbar() {
                             <Link to="/inicio" className="nav-link" onClick={handleClose}>Início</Link>
                         </li>
                         <li className="nav-item">
-                            <Link to="/produtos" className="nav-link" onClick={handleClose}>Produtos</Link>
+                            <Link to="/produtos" className="nav-link" onClick={handleClose}>Todos os Produtos</Link>
                         </li>
+
+                        <li className="nav-item">
+                            <div 
+                                className="nav-link d-flex justify-content-between align-items-center" 
+                                onClick={() => setOpenColecoes(!openColecoes)}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <span>Coleções</span>
+
+                                <span className='fs-5' style={{ transform: openColecoes ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.4s' }}>
+                                    ▼
+                                </span>
+                            </div>
+
+                            <Collapse in={openColecoes}>
+                                <div>
+                                    {colecoes.length > 0 && (
+                                        <ul className="list-unstyled ms-1 my-1 ps-3">
+                                            {colecoes.map((colecao) => (
+                                                <li className="nav-item" key={colecao.id_colecao || colecao.slug}>
+                                                    <Link 
+                                                        to={`/produtos?colecao=${colecao.slug}`} 
+                                                        className="nav-link fs-5 py-1" 
+                                                        onClick={handleClose}
+                                                    >
+                                                        {colecao.nome}
+                                                    </Link>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </Collapse>
+                        </li>
+
                         <li className="nav-item">
                             <Link to="/contato" className="nav-link" onClick={handleClose}>Contato</Link>
                         </li>
                         
-                        {/* SE ESTIVER LOGADO */}
                         {signed ? (
                             <>
                                 <li className="nav-item">
@@ -107,7 +155,7 @@ function Navbar() {
                                 </li>
                             </>
                         ) : (
-                            /* SE ESTIVER DESLOGADO */
+
                             <li className="nav-item mt-5">
                                 <Link className="nav-link" to="/login" onClick={handleClose}>Login</Link>
                             </li>

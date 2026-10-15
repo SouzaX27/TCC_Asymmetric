@@ -136,7 +136,6 @@ class Produto(models.Model):
     cor = models.CharField(max_length=30, blank=True, null=True, help_text="Ex: Branco, Preto ou etc")
     descricao = models.CharField(max_length=255, blank=True, null=True)
     preco = models.DecimalField(max_digits=8, decimal_places=2)
-    imagem = models.ImageField(upload_to='produtos/', null=True, blank=True)
     colecao = models.ForeignKey(
         Colecao, 
         on_delete=models.SET_NULL, 
@@ -184,6 +183,17 @@ class Produto(models.Model):
         if self.cor:
             return f"{self.nome} - {self.cor}"
         return f"self.nome"
+
+
+class ImagemProduto(models.Model):
+    id_imagem = models.AutoField(primary_key=True)
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='imagens')
+    imagem = models.ImageField(upload_to='produtos/')
+    medidas = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Imagem do produto: {self.produto.nome}"
+
 
 class VariacaoProduto(models.Model):
     id_variacao = models.AutoField(primary_key=True)

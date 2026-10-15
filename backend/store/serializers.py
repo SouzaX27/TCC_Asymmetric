@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from .models import Produto, VariacaoProduto, Cliente, Colecao, Pedido, ItemPedido, Estoque, Cupom
+from .models import Produto, VariacaoProduto, Cliente, Colecao, Pedido, ItemPedido, Estoque, Cupom, ImagemProduto
 
 class VariacaoProdutoSerializer(serializers.ModelSerializer):
     estoque_atual = serializers.IntegerField(read_only=True)
@@ -20,13 +20,20 @@ class ColecaoSerializer(serializers.ModelSerializer):
         model = Colecao
         fields = ['id_colecao', 'nome', 'descricao', 'ativa']
 
+
+class ImagemProdutoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImagemProduto
+        fields = ['id_imagem', 'imagem', 'medidas']        
+
 class ProdutoSerializer(serializers.ModelSerializer):
+    imagens = ImagemProdutoSerializer(many=True, read_only=True)
     variacoes = VariacaoProdutoSerializer(many=True, read_only=True)
     colecao_nome = serializers.ReadOnlyField(source='colecao.nome')
 
     class Meta:
         model = Produto
-        fields = ['id_produto', 'nome', 'cor', 'descricao', 'preco', 'imagem', 'variacoes', 'colecao', 'colecao_nome']
+        fields = ['id_produto', 'nome', 'slug', 'cor', 'descricao', 'preco', 'imagens', 'variacoes', 'colecao', 'colecao_nome']
 
 
 class RegistrarClienteSerializer(serializers.ModelSerializer):
