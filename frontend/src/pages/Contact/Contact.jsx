@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Container, Row, Col, Form } from 'react-bootstrap';
 import Button from '../../components/Button/Button';
+import Message from '../../components/Message/Message';
 
 function Contact() {
     // Estados para gerenciar o envio da API
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(null);
-    console.log("Minha chave:", import.meta.env.VITE_WEB3FORMS_KEY);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -50,15 +50,15 @@ function Contact() {
                     
                     {/* COLUNA 1: Formulário de Contato */}
                     <Col xs={12} lg={7}>
-                        {submitSuccess === true && (
-                            <div className="alert alert-success rounded-0 text-uppercase small mb-4">
-                                Mensagem enviada com sucesso! Responderemos em breve.
-                            </div>
-                        )}
-                        {submitSuccess === false && (
-                            <div className="alert alert-danger rounded-0 text-uppercase small mb-4">
-                                Ops! Algo deu errado. Tente novamente mais tarde.
-                            </div>
+                        {submitSuccess !== null && (
+                            <Message
+                                tipo={submitSuccess ? 'sucesso' : 'erro'}
+                                texto={submitSuccess
+                                    ? 'Mensagem enviada com sucesso! Responderemos em breve.'
+                                    : 'Ops! Algo deu errado. Tente novamente mais tarde.'}
+                                className="mb-4"
+                                onClose={() => setSubmitSuccess(null)}
+                            />
                         )}
 
                         <Form onSubmit={handleSubmit}>

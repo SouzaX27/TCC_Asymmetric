@@ -20,8 +20,7 @@ function Checkout() {
             bairro: '',
             cidade: '',
             estado: '',
-            cupom: '',
-            formaPagamento: 'pix'
+            cupom: ''
         };
     });
 
@@ -40,35 +39,54 @@ function Checkout() {
             ...prev,
             [name]: value
         }));
+
+        if (name === 'cupom') {
+            setDesconto(0);
+            setCupomAplicado(null);
+            setMensagemCupom({ tipo: '', texto: '' });
+        }
+        if (name === 'cep') {
+            setOpcoesFrete([]);
+            setFreteSelecionado(null);
+            setMensagemCep({ tipo: '', texto: '' });
+        }
     };
 
     const calcularFrete = async (cepDestino) => {
+        const itens = cart.map((item) => ({
+            variacao_produto: item.id_variacao || item.variacoes?.find((variacao) => variacao.tamanho === item.tamanho)?.id_variacao,
+            quantidade: item.quantidade
+        }));
+
+        if (itens.some((item) => !item.variacao_produto)) {
+            setOpcoesFrete([]);
+            setFreteSelecionado(null);
+            setMensagemCep({ tipo: 'erro', texto: 'Remova e adicione novamente os itens antigos do carrinho para atualizar as variações.' });
+            return;
+        }
+
         try {
             const response = await api.post('/frete/calcular/', {
                 cep_destino: cepDestino,
-                itens: cart.map(item => ({
-                    variacao_produto: item.id_variacao || item.id || item.id_produto,
-                    quantidade: item.quantidade
-                }))
+                itens
             });
 
-            const data = response.data;
-            const rawOpcoes = Array.isArray(data.opcoes) ? data.opcoes : (Array.isArray(data) ? data : []);
-
-            const opcoes = rawOpcoes.map((op, idx) => {
+            const opcoes = (response.data.opcoes || []).map((op, idx) => {
                 const dias = op.prazo_dias || op.prazo || 0;
                 const textoPrazo = dias === 1 ? '1 dia útil' : `${dias} dias úteis`;
 
                 return {
-                    id: op.id || op.codigo || `opcao-${idx}`,
-                    nome: op.nome || op.servico || 'Entrega',
-                    valor: Number(op.valor || op.preco || op.price || 0),
-                    prazo: textoPrazo
+                    id: String(op.id_servico ?? `opcao-${idx}`),
+                    servicoId: Number(op.id_servico ?? 0),
+                    nome: op.nome || 'Entrega',
+                    valor: Number(op.preco),
+                    prazo: textoPrazo,
+                    cotacaoToken: op.cotacao_token
                 };
             });
 
-            if (opcoes.length === 0) {
-                throw new Error("Nenhuma opção de frete retornada pela API.");
+            if (opcoes.length === 0 || opcoes.some((opcao) => !opcao.cotacaoToken || !Number.isFinite(opcao.valor))) {
+                throw new Error('Nenhuma opção de frete válida retornada pela API.');
             }
 
             setOpcoesFrete(opcoes);
@@ -76,17 +94,9 @@ function Checkout() {
             setMensagemCep({ tipo: '', texto: '' });
         } catch (error) {
             console.error('Erro ao calcular o frete via API:', error.response?.data || error.message);
-            
-            const uf = formData.estado || 'SP';
-            let baseValor = ['SP', 'RJ', 'MG', 'PR'].includes(uf) ? 14.30 : 24.90;
-
-            const opcoesFallback = [
-                { id: 'pac', nome: 'Padrão (PAC)', valor: Number(baseValor.toFixed(2)), prazo: '5 dias úteis' },
-                { id: 'sedex', nome: 'Expresso (SEDEX)', valor: Number((baseValor + 12.00).toFixed(2)), prazo: '2 dias úteis' }
-            ];
-
-            setOpcoesFrete(opcoesFallback);
-            setFreteSelecionado(opcoesFallback[0]);
+            setOpcoesFrete([]);
+            setFreteSelecionado(null);
+            setMensagemCep({ tipo: 'erro', texto: 'Não foi possível cotar o frete. Tente novamente em instantes.' });
         }
     };
 
@@ -94,6 +104,9 @@ function Checkout() {
         const cepLimpo = e.target.value.replace(/\D/g, '');
 
         if (cepLimpo.length === 8) {
+            setMensagemCep({ tipo: '', texto: '' });
+            setOpcoesFrete([]);
+            setFreteSelecionado(null);
             try {
                 const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
                 const data = await response.json();
@@ -107,7 +120,7 @@ function Checkout() {
                         estado: data.uf
                     }));
 
-                    calcularFrete(cepLimpo);
+                    await calcularFrete(cepLimpo);
                 } else {
                     setMensagemCep({ tipo: 'erro', texto: 'CEP não encontrado. Verifique o número digitado.' });
                     setOpcoesFrete([]);
@@ -117,6 +130,10 @@ function Checkout() {
                 console.error('Erro ao buscar o CEP:', error);
                 setMensagemCep({ tipo: 'erro', texto: 'Erro ao consultar o CEP. Tente novamente.' });
             }
+        } else {
+            setOpcoesFrete([]);
+            setFreteSelecionado(null);
+            setMensagemCep({ tipo: 'erro', texto: 'Informe um CEP com oito dígitos.' });
         }
     };
 
@@ -163,17 +180,49 @@ function Checkout() {
             return;
         }
 
+        const itens = cart.map((item) => ({
+            variacao_produto: item.id_variacao || item.variacoes?.find((variacao) => variacao.tamanho === item.tamanho)?.id_variacao,
+            quantidade: item.quantidade
+        }));
+        if (itens.some((item) => !item.variacao_produto)) {
+            setMensagemGeral({ tipo: 'erro', texto: 'Um item do carrinho não possui uma variação válida. Remova-o e adicione o produto novamente.' });
+            return;
+        }
+
+        const dadosPedido = {
+            nome_comprador: formData.nome,
+            email_comprador: formData.email,
+            telefone_comprador: formData.telefone,
+            cep_entrega: formData.cep,
+            endereco_entrega: formData.logradouro,
+            numero_entrega: formData.numero,
+            bairro_entrega: formData.bairro,
+            cidade_entrega: formData.cidade,
+            estado_entrega: formData.estado.toUpperCase(),
+            cupom: cupomAplicado?.id_cupom || null,
+            frete_cotacao: freteSelecionado.cotacaoToken,
+            itens
+        };
+
         const pedidoRascunho = {
             cliente: formData,
             frete: freteSelecionado,
             subtotal: cartTotal,
-            totalGeral: totalComFrete
+            desconto,
+            totalGeral: totalComFrete,
+            itens: cart.map((item) => ({
+                nome: item.nome,
+                tamanho: item.tamanho,
+                quantidade: item.quantidade,
+                preco: item.preco
+            }))
         };
 
         sessionStorage.setItem('checkout_formData', JSON.stringify(formData));
+        sessionStorage.setItem('checkout_order_payload', JSON.stringify(dadosPedido));
         sessionStorage.setItem('checkout_pedido', JSON.stringify(pedidoRascunho));
-
-        navigate('/pagamento');
+        sessionStorage.removeItem('checkout_payment_token');
+        navigate('/confirmacao');
     };
 
     if (cart.length === 0) {
@@ -341,7 +390,7 @@ function Checkout() {
                         <h4 className="mb-3 fs-3 fw-bold">Resumo do Pedido</h4>
                         <div className="mb-3 border-bottom pb-2">
                             {cart.map((item, index) => (
-                                <div key={`${item.id}-${item.tamanho}-${index}`} className="d-flex justify-content-between align-items-center mb-2">
+                                <div key={`${item.id_variacao || item.id}-${item.tamanho}-${index}`} className="d-flex justify-content-between align-items-center mb-2">
                                     <div>
                                         <span className="fw-semibold">{item.nome}</span>
                                         <br />
@@ -391,33 +440,8 @@ function Checkout() {
                             </div>
                         </div>
 
-                        <h4 className="mt-3 mb-3 fs-3 fw-bold">Forma de Pagamento</h4>
-                        <div className="mb-4">
-                            <div className="form-check mb-2">
-                                <input
-                                    className="form-check-input"
-                                    type="radio"
-                                    name="formaPagamento"
-                                    id="pix"
-                                    value="pix"
-                                    checked={formData.formaPagamento === 'pix'}
-                                    onChange={handleChange}
-                                />
-                                <label className="form-check-label fs-5" htmlFor="pix">PIX (Aprovação imediata)</label>
-                            </div>
-                            <div className="form-check mb-2">
-                                <input
-                                    className="form-check-input"
-                                    type="radio"
-                                    name="formaPagamento"
-                                    id="cartao"
-                                    value="cartao"
-                                    checked={formData.formaPagamento === 'cartao'}
-                                    onChange={handleChange}
-                                />
-                                <label className="form-check-label fs-5" htmlFor="cartao">Cartão de Crédito</label>
-                            </div>
-                        </div>
+                        <h4 className="mt-3 mb-2 fs-3 fw-bold">Revisão do pedido</h4>
+                        <p className="text-muted">Você poderá revisar os dados antes de gerar o pagamento demonstrativo.</p>
 
                         <div className="d-flex justify-content-between fs-3 fw-bold mb-4 border-top pt-3">
                             <span>Total:</span>
@@ -427,7 +451,7 @@ function Checkout() {
                         <Message tipo={mensagemGeral.tipo} texto={mensagemGeral.texto} />
 
                         <button type="submit" className="button-1 w-100 py-3 fw-bold text-uppercase mt-2">
-                            Avançar
+                            Revisar pedido
                         </button>
                     </div>
                 </div>

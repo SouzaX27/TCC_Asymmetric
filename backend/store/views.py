@@ -1,13 +1,18 @@
 # from django.shortcuts import render
 from decimal import Decimal
+from datetime import timedelta
+from django.conf import settings
+from django.core import signing
+from django.db import transaction
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
 from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer, CalcularFreteInputSerializer, CupomSerializer
-from .services import calcular_frete_melhor_envio
-from .models import Produto, VariacaoProduto, Colecao, Pedido, Cupom
+from .services import calcular_frete_melhor_envio, criar_pagamento_gateway_demo, consultar_pagamento_gateway_demo
+from .models import Produto, VariacaoProduto, Colecao, Pedido, Cupom, PagamentoDemonstracao
 
 class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Colecao.objects.filter(ativa=True)
@@ -57,7 +62,7 @@ class MeView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class PedidoViewSet(viewsets.ModelViewSet):
+class PedidoViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PedidoSerializer
     
     def get_queryset(self):
@@ -72,10 +77,137 @@ class PedidoViewSet(viewsets.ModelViewSet):
         return Pedido.objects.none()
 
     def get_permissions(self):
-        # Permite que convidados criem pedidos (POST), mas exige login para listar/detalhar
-        if self.action == 'create':
-            return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
+
+
+class CriarPagamentoDemonstracaoView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        if not getattr(settings, 'PAGAMENTOS_DEMO_ATIVOS', settings.DEBUG):
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PedidoSerializer(data=request.data, context={'request': request})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        pagamento = PagamentoDemonstracao.objects.create(
+            dados_pedido=request.data,
+            valor_total=serializer.validated_data['_valor_total'],
+            expira_em=timezone.now() + timedelta(minutes=20)
+        )
+        gateway_disponivel = False
+        if settings.URL_GATEWAY_DEMO and settings.SEGREDO_GATEWAY_DEMO:
+            gateway, erro = criar_pagamento_gateway_demo(pagamento.valor_total, str(pagamento.token))
+            if gateway:
+                pagamento.id_pagamento_gateway = gateway['id_pagamento']
+                pagamento.url_checkout = gateway['url_checkout']
+                pagamento.save(update_fields=['id_pagamento_gateway', 'url_checkout'])
+                gateway_disponivel = True
+
+        return Response({
+            'token': str(pagamento.token),
+            'status': pagamento.status,
+            'url_checkout': pagamento.url_checkout or None,
+            'gateway_disponivel': gateway_disponivel,
+            'valor_total': str(pagamento.valor_total),
+            'subtotal': str(serializer.validated_data['_subtotal']),
+            'desconto': str(serializer.validated_data['_desconto']),
+            'frete': str(serializer.validated_data['_frete']),
+            'expira_em': pagamento.expira_em,
+        }, status=status.HTTP_201_CREATED)
+
+
+class PagamentoDemonstracaoView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def obter_pagamento(self, token, lock=False):
+        queryset = PagamentoDemonstracao.objects
+        if lock:
+            queryset = queryset.select_for_update()
+        return queryset.get(token=token)
+
+    def montar_resposta(self, pagamento):
+        return {
+            'token': str(pagamento.token),
+            'status': pagamento.status,
+            'valor_total': str(pagamento.valor_total),
+            'expira_em': pagamento.expira_em,
+            'id_pedido': pagamento.pedido_id,
+            'url_checkout': pagamento.url_checkout or None,
+            'gateway_configurado': bool(pagamento.id_pagamento_gateway),
+        }
+
+    def finalizar_pedido(self, pagamento, request):
+        with transaction.atomic():
+            pagamento = self.obter_pagamento(pagamento.token, lock=True)
+            if pagamento.status == 'aprovado':
+                return pagamento
+            if pagamento.status != 'pendente' or pagamento.expira_em <= timezone.now():
+                pagamento.status = 'expirado'
+                pagamento.save(update_fields=['status'])
+                return pagamento
+
+            serializer = PedidoSerializer(
+                data=pagamento.dados_pedido,
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            pedido = serializer.save(status='Pagamento Aprovado (Demo)')
+            pagamento.pedido = pedido
+            pagamento.status = 'aprovado'
+            pagamento.save(update_fields=['pedido', 'status'])
+            return pagamento
+
+    def sincronizar_pagamento_remoto(self, pagamento, request):
+        if not pagamento.id_pagamento_gateway or pagamento.status != 'pendente':
+            return False
+
+        gateway, erro = consultar_pagamento_gateway_demo(pagamento.id_pagamento_gateway)
+        if erro:
+            return False
+        try:
+            valor_gateway = Decimal(str(gateway['valor'])).quantize(Decimal('0.01'))
+        except (KeyError, TypeError, ValueError, ArithmeticError):
+            return False
+        if gateway.get('referencia') != str(pagamento.token) or valor_gateway != pagamento.valor_total:
+            return False
+        if gateway.get('status') == 'aprovado':
+            self.finalizar_pedido(pagamento, request)
+        elif gateway.get('status') == 'expirado':
+            pagamento.status = 'expirado'
+            pagamento.save(update_fields=['status'])
+        return True
+
+    def get(self, request, token):
+        try:
+            pagamento = self.obter_pagamento(token)
+        except PagamentoDemonstracao.DoesNotExist:
+            return Response({'erro': 'Cobrança não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        if pagamento.status == 'pendente' and pagamento.expira_em <= timezone.now():
+            pagamento.status = 'expirado'
+            pagamento.save(update_fields=['status'])
+        gateway_disponivel = self.sincronizar_pagamento_remoto(pagamento, request)
+        pagamento.refresh_from_db()
+        return Response({**self.montar_resposta(pagamento), 'gateway_disponivel': gateway_disponivel})
+
+    def post(self, request, token):
+        if not getattr(settings, 'PAGAMENTOS_DEMO_ATIVOS', settings.DEBUG):
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            pagamento = self.obter_pagamento(token)
+            if pagamento.status == 'aprovado':
+                return Response(self.montar_resposta(pagamento))
+            if pagamento.status != 'pendente' or pagamento.expira_em <= timezone.now():
+                pagamento.status = 'expirado'
+                pagamento.save(update_fields=['status'])
+                return Response({'erro': 'Esta cobrança expirou.'}, status=status.HTTP_410_GONE)
+            pagamento = self.finalizar_pedido(pagamento, request)
+        except PagamentoDemonstracao.DoesNotExist:
+            return Response({'erro': 'Cobrança não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(self.montar_resposta(pagamento))
 
 
 class CupomViewSet(viewsets.ReadOnlyModelViewSet):
@@ -123,6 +255,8 @@ class CupomViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CalcularFreteView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = CalcularFreteInputSerializer(data=request.data)
         if not serializer.is_valid():
@@ -155,10 +289,34 @@ class CalcularFreteView(APIView):
         # Executa a cotação no serviço externo
         opcoes_frete, erro = calcular_frete_melhor_envio(cep_destino, itens_com_objetos)
 
+        if erro and settings.PAGAMENTOS_DEMO_ATIVOS and not settings.MELHOR_ENVIO_TOKEN:
+            opcoes_frete = [
+                {'id_servico': 0, 'nome': 'PAC demonstrativo', 'preco': '14.30', 'prazo_dias': 5},
+                {'id_servico': 1, 'nome': 'SEDEX demonstrativo', 'preco': '26.30', 'prazo_dias': 2},
+            ]
+            erro = None
+
         if erro:
             return Response({"mensagem": erro}, status=status.HTTP_502_BAD_GATEWAY)
 
+        itens_cotados = sorted(
+            [[item['variacao_produto'], item['quantidade']] for item in itens_raw],
+            key=lambda item: item[0]
+        )
+        opcoes_assinadas = []
+        for opcao in opcoes_frete:
+            opcao = dict(opcao)
+            opcao['cotacao_token'] = signing.dumps({
+                'cep_destino': cep_destino,
+                'itens': itens_cotados,
+                'servico_id': opcao.get('id_servico', 0),
+                'servico_nome': opcao.get('nome') or 'Entrega',
+                'preco': str(opcao.get('preco', '0.00')),
+                'prazo_dias': opcao.get('prazo_dias') or 0,
+            }, salt='store.freight-quote')
+            opcoes_assinadas.append(opcao)
+
         return Response({
             "cep_destino": cep_destino,
-            "opcoes": opcoes_frete
+            "opcoes": opcoes_assinadas
         }, status=status.HTTP_200_OK)

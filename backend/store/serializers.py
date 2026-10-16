@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core import signing
 from .models import Produto, VariacaoProduto, Cliente, Colecao, Pedido, ItemPedido, Estoque, Cupom, ImagemProduto
 
 class VariacaoProdutoSerializer(serializers.ModelSerializer):
@@ -115,6 +116,7 @@ class ClientePerfilSerializer(serializers.ModelSerializer):
 
 
 class ItemPedidoSerializer(serializers.ModelSerializer):
+    quantidade = serializers.IntegerField(min_value=1)
     # Expõe os detalhes da variação para leitura
     variacao_nome = serializers.ReadOnlyField(source='variacao_produto.produto.nome')
     tamanho = serializers.ReadOnlyField(source='variacao_produto.tamanho')
@@ -127,7 +129,8 @@ class ItemPedidoSerializer(serializers.ModelSerializer):
 
 
 class PedidoSerializer(serializers.ModelSerializer):
-    itens = ItemPedidoSerializer(many=True)
+    itens = ItemPedidoSerializer(many=True, min_length=1)
+    frete_cotacao = serializers.CharField(write_only=True)
 
     # garante a obrigatoriedade na enttrada da api (Checkout)
     cep_entrega = serializers.CharField(max_length=9, required=True, allow_blank=False)
@@ -137,9 +140,9 @@ class PedidoSerializer(serializers.ModelSerializer):
     cidade_entrega = serializers.CharField(max_length=100, required=True, allow_blank=False)
     estado_entrega = serializers.CharField(max_length=2, required=True, allow_blank=False)
     
-    servico_frete_id = serializers.IntegerField(required=True)
-    servico_frete_nome = serializers.CharField(max_length=50, required=True, allow_blank=False)
-    prazo_frete_dias = serializers.IntegerField(required=True)
+    servico_frete_id = serializers.IntegerField(required=False)
+    servico_frete_nome = serializers.CharField(max_length=50, required=False, allow_blank=False)
+    prazo_frete_dias = serializers.IntegerField(required=False)
 
     class Meta:
             model = Pedido
@@ -167,57 +170,125 @@ class PedidoSerializer(serializers.ModelSerializer):
                 'frete',
                 'desconto',
                 'valor_final',
-                'itens'
+                'itens',
+                'frete_cotacao'
             ]
             read_only_fields = [
                 'id_pedido', 
+                'cliente',
                 'data_pedido', 
+                'status',
                 'sub_total', 
                 'desconto', 
                 'valor_final',
+                'frete',
+                'metodo_pagamento',
+                'servico_frete_id',
+                'servico_frete_nome',
+                'prazo_frete_dias',
                 'id_transacao_gateway',
                 'qr_code_pix',
                 'qr_code_base64',
                 'ticket_url'
             ]
 
+    def validate(self, attrs):
+        try:
+            cotacao = signing.loads(attrs['frete_cotacao'], salt='store.freight-quote', max_age=3600)
+        except (signing.BadSignature, signing.SignatureExpired, KeyError, TypeError):
+            raise serializers.ValidationError({'frete_cotacao': 'Cotação de frete inválida ou expirada.'})
+
+        cep = attrs['cep_entrega'].replace('-', '').replace(' ', '')
+        itens = sorted(
+            [[item['variacao_produto'].id_variacao, item['quantidade']] for item in attrs['itens']],
+            key=lambda item: item[0]
+        )
+        if cotacao.get('cep_destino') != cep or cotacao.get('itens') != itens:
+            raise serializers.ValidationError({'frete_cotacao': 'A cotação não corresponde ao CEP e aos itens do pedido.'})
+
+        try:
+            frete = Decimal(cotacao['preco'])
+            servico_id = int(cotacao['servico_id'])
+            servico_nome = str(cotacao['servico_nome'])[:50]
+            prazo = int(cotacao['prazo_dias'])
+        except (KeyError, TypeError, ValueError, ArithmeticError):
+            raise serializers.ValidationError({'frete_cotacao': 'Dados da cotação inválidos.'})
+        if frete < 0 or prazo < 0:
+            raise serializers.ValidationError({'frete_cotacao': 'Dados da cotação inválidos.'})
+
+        subtotal = sum(
+            (item['variacao_produto'].produto.preco * item['quantidade'] for item in attrs['itens']),
+            Decimal('0.00')
+        )
+        cupom = attrs.get('cupom')
+        desconto = Decimal('0.00')
+        if cupom:
+            valido, mensagem = cupom.e_valido(subtotal)
+            if not valido:
+                raise serializers.ValidationError({'cupom': mensagem})
+            desconto = Decimal(str(cupom.calcular_desconto(subtotal))).quantize(Decimal('0.01'))
+
+        attrs['frete'] = frete
+        attrs['servico_frete_id'] = servico_id
+        attrs['servico_frete_nome'] = servico_nome
+        attrs['prazo_frete_dias'] = prazo
+        attrs['_subtotal'] = subtotal
+        attrs['_desconto'] = desconto
+        attrs['_frete'] = frete
+        attrs['_valor_total'] = max(Decimal('0.00'), subtotal + frete - desconto)
+        return attrs
+
     def create(self, validated_data):
         itens_data = validated_data.pop('itens')
-        cupom = validated_data.get('cupom', None)
+        validated_data.pop('frete_cotacao', None)
+        validated_data.pop('_subtotal', None)
+        validated_data.pop('_desconto', None)
+        validated_data.pop('_frete', None)
+        validated_data.pop('_valor_total', None)
+        status_pedido = validated_data.pop('status', 'Pagamento Aprovado (Demo)')
+        validated_data['metodo_pagamento'] = 'demonstracao'
+        cupom = validated_data.pop('cupom', None)
         
-        # Garante que todas as operações (Pedido, Itens, Estoque e Cupom) ocorram dentro de uma transação SQL
         with transaction.atomic():
-            # Associa o cliente se estiver autenticado
             request = self.context.get('request')
             if request and hasattr(request.user, 'cliente'):
                 validated_data['cliente'] = request.user.cliente
 
-            # Converte o frete para Decimal
-            frete = Decimal(str(validated_data.get('frete', 0)))
+            quantidades = {}
+            for item in itens_data:
+                variacao_id = item['variacao_produto'].id_variacao
+                quantidades[variacao_id] = quantidades.get(variacao_id, 0) + item['quantidade']
 
-            # Cria o Pedido inicial zerado para obter o id_pedido
+            variacoes = VariacaoProduto.objects.select_for_update().filter(
+                id_variacao__in=quantidades
+            ).select_related('produto')
+            variacoes_por_id = {variacao.id_variacao: variacao for variacao in variacoes}
+            if len(variacoes_por_id) != len(quantidades):
+                raise serializers.ValidationError({'itens': 'Um ou mais produtos não estão mais disponíveis.'})
+
+            for variacao_id, quantidade in quantidades.items():
+                variacao = variacoes_por_id[variacao_id]
+                if variacao.estoque_atual < quantidade:
+                    raise serializers.ValidationError(
+                        {'itens': f'Estoque insuficiente para {variacao.produto.nome} ({variacao.tamanho}).'}
+                    )
+
+            if cupom:
+                cupom = Cupom.objects.select_for_update().get(pk=cupom.pk)
+
             pedido = Pedido.objects.create(
                 sub_total=Decimal('0.00'),
                 desconto=Decimal('0.00'),
                 valor_final=Decimal('0.00'),
+                status=status_pedido,
+                frete=validated_data.pop('frete'),
                 **validated_data
             )
 
             sub_total = Decimal('0.00')
-
-            # Processa cada item do pedido, valida estoque e calcula o subtotal
-            for item_data in itens_data:
-                variacao = item_data['variacao_produto']
-                quantidade = item_data['quantidade']
+            for variacao_id, quantidade in quantidades.items():
+                variacao = variacoes_por_id[variacao_id]
                 preco_unitario = variacao.produto.preco
-
-                # Verifica estoque suficiente
-                if variacao.estoque_atual < quantidade:
-                    raise serializers.ValidationError(
-                        f"Estoque insuficiente para {variacao.produto.nome} ({variacao.tamanho}). Disponível: {variacao.estoque_atual}"
-                    )
-
-                # Cria o ItemPedido
                 ItemPedido.objects.create(
                     pedido=pedido,
                     variacao_produto=variacao,
@@ -225,7 +296,6 @@ class PedidoSerializer(serializers.ModelSerializer):
                     preco_unitario=preco_unitario
                 )
 
-                # Dá baixa no Estoque registando a 'Saida'
                 Estoque.objects.create(
                     variacao_produto=variacao,
                     pedido=pedido,
@@ -236,29 +306,22 @@ class PedidoSerializer(serializers.ModelSerializer):
 
                 sub_total += Decimal(str(preco_unitario)) * quantidade
 
-            # Processa e valida o Cupom se tiver sido enviado
             valor_desconto = Decimal('0.00')
             if cupom:
                 valido, mensagem = cupom.e_valido(sub_total)
                 if not valido:
                     raise serializers.ValidationError({"cupom": mensagem})
 
-                # Garante que o retorno do cálculo do desconto é do tipo Decimal
-                valor_desconto = Decimal(str(cupom.calcular_desconto(sub_total)))
-
-                # Retira 1 na quantidade disponível do cupom
+                valor_desconto = Decimal(str(cupom.calcular_desconto(sub_total))).quantize(Decimal('0.01'))
                 cupom.quantidade_disponivel -= 1
-                
-                # Se zerar a quantidade, altera o status para 'Inativo'
                 if cupom.quantidade_disponivel <= 0:
                     cupom.status = 'Inativo'
 
                 cupom.save()
 
-            # Atualiza os totais calculados no Pedido sem misturar tipos
             pedido.sub_total = sub_total
             pedido.desconto = valor_desconto
-            pedido.valor_final = max(Decimal('0.00'), sub_total + frete - valor_desconto)
+            pedido.valor_final = max(Decimal('0.00'), sub_total + pedido.frete - valor_desconto)
             pedido.save()
 
             return pedido

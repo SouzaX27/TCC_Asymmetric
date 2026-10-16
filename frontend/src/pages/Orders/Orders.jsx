@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import Modal from '../../components/Modal/Modal';
 
 function Orders() {
     const [pedidos, setPedidos] = useState([]);
+    const [pedidoRastreio, setPedidoRastreio] = useState(null);
 
     useEffect(() => {
         // Carrega os pedidos salvos no localStorage (ordenados do mais recente ao mais antigo)
@@ -50,7 +52,7 @@ function Orders() {
                                     <div className="col-md-4 text-md-end mt-3 mt-md-0">
                                         <button 
                                             type="button"
-                                            onClick={() => alert(`Rastreio do pedido ${pedido.id}: O código será enviado por e-mail (${pedido.cliente?.email}) assim que postado!`)}
+                                            onClick={() => setPedidoRastreio(pedido)}
                                             className="button-2 fw-bold fs-6 text-uppercase border-grey rounded-0 px-4 py-2"
                                         >
                                             Rastrear Envio
@@ -62,6 +64,19 @@ function Orders() {
                     ))}
                 </div>
             )}
+
+            <Modal
+                show={Boolean(pedidoRastreio)}
+                onClose={() => setPedidoRastreio(null)}
+                title="Rastreamento do pedido"
+            >
+                {pedidoRastreio && (
+                    <>
+                        <p><strong>Pedido:</strong> {pedidoRastreio.id}</p>
+                        <p className="mb-0">O código de rastreio será enviado para {pedidoRastreio.cliente?.email} assim que o pedido for postado.</p>
+                    </>
+                )}
+            </Modal>
         </div>
     );
 }

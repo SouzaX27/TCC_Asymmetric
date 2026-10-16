@@ -1,21 +1,13 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { getMediaUrl } from '../../services/api';
 import './ProductCard.css';
 
 function ProductCard({ produto }) {
     const formatarPreco = (valor) => {
         return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
-
-    const getImageUrl = (img) => {
-        if (!img) return '';
-
-        if (img.startsWith('http')) return img;
-
-        return `http://localhost:8000${img}`;
-    };
-
 
     const imagemPrincipal = produto.imagens && produto.imagens.length > 0 ? produto.imagens.find(img => !img.medidas) || produto.imagens[0] : null;
     const imagemSrc = imagemPrincipal && imagemPrincipal.imagem ? imagemPrincipal.imagem : '';
@@ -26,7 +18,7 @@ function ProductCard({ produto }) {
                 <Card.Img 
                     className="product-image" 
                     variant="top" 
-                    src={getImageUrl(imagemSrc)} 
+                    src={getMediaUrl(imagemSrc)}
                     alt={produto.nome} 
                 />
                 <Card.Body className="px-0 mx-3">

@@ -30,6 +30,9 @@ if not SECRET_KEY:
     raise ValueError("A variável SECRET_KEY não foi configurada no arquivo .env")
 
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
+PAGAMENTOS_DEMO_ATIVOS = os.getenv('PAGAMENTOS_DEMO_ATIVOS', str(DEBUG)).lower() in ('true', '1', 't')
+URL_GATEWAY_DEMO = os.getenv('URL_GATEWAY_DEMO', '').rstrip('/')
+SEGREDO_GATEWAY_DEMO = os.getenv('SEGREDO_GATEWAY_DEMO', '')
 
 
 MELHOR_ENVIO_TOKEN = os.getenv('MELHOR_ENVIO_TOKEN')
@@ -37,7 +40,23 @@ MELHOR_ENVIO_URL = os.getenv('MELHOR_ENVIO_URL', 'https://sandbox.melhorenvio.co
 CEP_ORIGEM = os.getenv('CEP_ORIGEM', '18274030')
 
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        'CSRF_TRUSTED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,https://localhost:8000,http://127.0.0.1:8000,https://127.0.0.1:8000'
+    ).split(',')
+    if origin.strip()
+]
+
+if DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -156,8 +175,11 @@ REST_FRAMEWORK = {
 
 # urls que estão liberadas a fazer requisições
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",    # Servidor dev do React (Vite)
-    "http://127.0.0.1:5173",
-    "https://hoppscotch.io",    # Web App do Hoppscotch
+    origin.strip()
+    for origin in os.getenv(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173,https://hoppscotch.io'
+    ).split(',')
+    if origin.strip()
 ]
 

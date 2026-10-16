@@ -1,108 +1,142 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../services/api';
+import Message from '../../components/Message/Message';
 
 function Confirmation() {
     const navigate = useNavigate();
-    const [pedidoFinal, setPedidoFinal] = useState(null);
+    const [rascunho] = useState(() => {
+        const pedidoSalvo = sessionStorage.getItem('checkout_pedido');
+        const dadosPedido = sessionStorage.getItem('checkout_order_payload');
+        if (!pedidoSalvo || !dadosPedido) return null;
+
+        try {
+            return {
+                pedido: JSON.parse(pedidoSalvo),
+                dadosPedido: JSON.parse(dadosPedido)
+            };
+        } catch {
+            return null;
+        }
+    });
+    const [enviando, setEnviando] = useState(false);
+    const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
     useEffect(() => {
-        const pedidoSalvo = sessionStorage.getItem('checkout_pedido');
-        
-        if (!pedidoSalvo) {
-            navigate('/inicio');
-            return;
+        if (!rascunho) navigate('/checkout', { replace: true });
+    }, [navigate, rascunho]);
+
+    const confirmarPedido = async () => {
+        setEnviando(true);
+        setMensagem({ tipo: '', texto: '' });
+
+        try {
+            const response = await api.post('/pagamentos-demo/', rascunho.dadosPedido);
+            const pedidoAtualizado = {
+                ...rascunho.pedido,
+                subtotal: Number(response.data.subtotal),
+                desconto: Number(response.data.desconto),
+                totalGeral: Number(response.data.valor_total),
+                urlCheckout: response.data.url_checkout,
+                gatewayDisponivel: response.data.gateway_disponivel,
+                frete: {
+                    ...rascunho.pedido.frete,
+                    valor: Number(response.data.frete)
+                }
+            };
+
+            sessionStorage.setItem('checkout_pedido', JSON.stringify(pedidoAtualizado));
+            sessionStorage.setItem('checkout_payment_token', response.data.token);
+            sessionStorage.removeItem('checkout_order_payload');
+            navigate('/pagamento');
+        } catch (error) {
+            const erros = error.response?.data;
+            const mensagemErro = typeof erros === 'string'
+                ? erros
+                : Object.values(erros || {}).flat().join(' ');
+            setMensagem({
+                tipo: 'erro',
+                texto: mensagemErro || 'Não foi possível confirmar o pedido. Revise os dados e tente novamente.'
+            });
+        } finally {
+            setEnviando(false);
         }
+    };
 
-        const dados = JSON.parse(pedidoSalvo);
-        
-        // Se por algum motivo o Payment não gerou o código, gera um aqui de fallback
-        if (!dados.codigoPedido) {
-            dados.codigoPedido = `#ASMM-${Math.floor(10000 + Math.random() * 90000)}`;
-        }
+    if (!rascunho) return null;
 
-        setPedidoFinal(dados);
-
-        // Prepara o objeto do pedido para o histórico do Orders.jsx
-        const novoPedidoCompleto = {
-            id: dados.codigoPedido,
-            data: new Date().toLocaleDateString('pt-BR'),
-            status: 'Pagamento Aprovado',
-            statusColor: 'bg-success',
-            cliente: dados.cliente,
-            frete: dados.frete,
-            subtotal: dados.subtotal,
-            totalGeral: dados.totalGeral,
-            itens: dados.itens || ['Itens da Compra']
-        };
-
-        // Salva no histórico local
-        const historicoAntigo = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
-        
-        // Evita duplicar no F5
-        const pedidoJaExiste = historicoAntigo.some(p => p.id === dados.codigoPedido);
-        if (!pedidoJaExiste) {
-            const novoHistorico = [novoPedidoCompleto, ...historicoAntigo];
-            localStorage.setItem('meus_pedidos', JSON.stringify(novoHistorico));
-        }
-
-        // Limpa apenas o formulário de dados do checkout
-        sessionStorage.removeItem('checkout_formData');
-    }, [navigate]);
-
-    if (!pedidoFinal) {
-        return null;
-    }
-
-    const { cliente, frete, subtotal, totalGeral, codigoPedido } = pedidoFinal;
+    const { pedido } = rascunho;
+    const { cliente, frete, itens, subtotal, desconto, totalGeral } = pedido;
 
     return (
-        <div className="container my-5 pt-5">
-            <div className="max-width-700 mx-auto text-center">
+        <main className="container my-5 pt-4">
+            <h1 className="fw-bold text-uppercase mb-4">Confirme seu pedido</h1>
 
-                <div className="mb-4">
-                    <div className="display-1 text-success mb-2">✓</div>
-                    <h1 className="fw-bold text-uppercase">Pagamento Confirmado!</h1>
-                    <p className="fs-5 text-muted">
-                        Pedido: <strong className="text-black">{codigoPedido}</strong>
-                    </p>
-                    <span className="badge bg-success rounded-0 fs-6 fw-normal px-3 py-2 text-uppercase">
-                        Status: Pagamento Aprovado
-                    </span>
-                </div>
-                
-                <div className="border-grey p-4 mb-4 text-start">
-                    <h4 className="fs-3 fw-bold mb-3 border-bottom pb-2">Resumo da Compra</h4>
-                    
-                    <p className="fs-5 mb-1"><strong>Cliente:</strong> {cliente.nome}</p>
-                    <p className="fs-5 mb-1"><strong>E-mail:</strong> {cliente.email}</p>
-                    <p className="fs-5 mb-3"><strong>Entrega para:</strong> {cliente.logradouro}, Nº {cliente.numero} - {cliente.bairro}, {cliente.cidade}/{cliente.estado}</p>
-                    
-                    <div className="border-top pt-3">
-                        <p className="fs-5 mb-1"><strong>Forma de Pagamento:</strong> {cliente.formaPagamento === 'pix' ? 'PIX' : 'Cartão de Crédito'}</p>
-                        <p className="fs-5 mb-1"><strong>Frete Escolhido:</strong> {frete.nome} ({frete.prazo})</p>
-                        <p className="fs-5 mb-1"><strong>Subtotal:</strong> R$ {subtotal.toFixed(2)}</p>
-                        <p className="fs-4 fw-bold mb-0 mt-2"><strong>Total Pago:</strong> R$ {totalGeral.toFixed(2)}</p>
+            <div className="row g-4">
+                <section className="col-lg-7">
+                    <div className="border-grey p-4 mb-4">
+                        <h2 className="fs-4 fw-bold mb-3">Comprador</h2>
+                        <p className="mb-1"><strong>Nome:</strong> {cliente.nome}</p>
+                        <p className="mb-1"><strong>E-mail:</strong> {cliente.email}</p>
+                        <p className="mb-0"><strong>Telefone:</strong> {cliente.telefone}</p>
+
+                        <h2 className="fs-4 fw-bold mt-4 mb-3">Entrega</h2>
+                        <p className="mb-1">{cliente.logradouro}, nº {cliente.numero}</p>
+                        <p className="mb-1">{cliente.bairro}, {cliente.cidade}/{cliente.estado}</p>
+                        <p className="mb-3">CEP: {cliente.cep}</p>
+                        <p className="mb-0"><strong>{frete.nome}</strong> ({frete.prazo})</p>
                     </div>
-                </div>
 
-                <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center mt-4">
-                    <Link 
-                        to="/pedidos" 
-                        className="button-1 text-decoration-none px-4 py-3 fw-bold text-uppercase fs-5"
-                    >
-                        Acompanhar Pedido
-                    </Link>
+                    <div className="border-grey p-4">
+                        <h2 className="fs-4 fw-bold mb-3">Itens</h2>
+                        {itens.map((item, index) => (
+                            <div key={`${item.nome}-${item.tamanho}-${index}`} className="d-flex justify-content-between gap-3 mb-2">
+                                <span>{item.nome}, tam. {item.tamanho} × {item.quantidade}</span>
+                                <span>{(item.preco * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        ))}
+                    </div>
+                </section>
 
-                    <Link 
-                        to="/inicio" 
-                        className="button-2 px-4 py-3 fw-bold text-uppercase fs-5 border-grey rounded-0"
-                    >
-                        Voltar para a Loja
-                    </Link>
-                </div>
+                <aside className="col-lg-5">
+                    <div className="border-grey p-4">
+                        <h2 className="fs-4 fw-bold mb-3">Resumo</h2>
+                        <div className="d-flex justify-content-between mb-2">
+                            <span>Subtotal</span>
+                            <span>{subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        {desconto > 0 && (
+                            <div className="d-flex justify-content-between mb-2 text-success">
+                                <span>Desconto</span>
+                                <span>- {desconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        )}
+                        <div className="d-flex justify-content-between mb-3">
+                            <span>Frete</span>
+                            <span>{Number(frete.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        <div className="d-flex justify-content-between border-top pt-3 mb-4 fs-5 fw-bold">
+                            <span>Total</span>
+                            <span>{totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
 
+                        <p className="text-muted">O pagamento é demonstrativo. Nenhuma cobrança real será feita.</p>
+                        <Message tipo={mensagem.tipo} texto={mensagem.texto} />
+                        <button
+                            type="button"
+                            className="button-1 w-100 py-3 fw-bold text-uppercase"
+                            onClick={confirmarPedido}
+                            disabled={enviando}
+                        >
+                            {enviando ? 'Preparando pagamento...' : 'Confirmar pedido e continuar'}
+                        </button>
+                        <Link to="/checkout" className="d-block text-center mt-3 text-muted">
+                            Voltar e editar dados
+                        </Link>
+                    </div>
+                </aside>
             </div>
-        </div>
+        </main>
     );
 }
 

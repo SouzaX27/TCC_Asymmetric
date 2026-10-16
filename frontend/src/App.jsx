@@ -46,7 +46,6 @@ function App() {
                             <Route path="/carrinho" element={<Cart />} />
                             <Route path="/checkout" element={<Checkout />} />
                             <Route path="/pagamento" element={<Payment />} />
-                            <Route path="/pagamento" element={<Payment />} />
                             <Route path="/confirmacao" element={<Confirmation />} />
                             <Route path="/pedidos" element={<Orders />} />
                         </Route>

@@ -3,6 +3,7 @@ import { Container, Row, Col, ListGroup, Card } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import Button from '../../components/Button/Button';
+import { getMediaUrl } from '../../services/api';
 
 function Cart() {
     const { cart, removeFromCart, increaseQuantity, decreaseQuantity, cartTotal } = useCart();
@@ -29,16 +30,12 @@ function Cart() {
                 <Col lg={8}>
                     <ListGroup variant="flush" className="border-bottom border-top">
                         {cart.map((item) => (
-                            <ListGroup.Item key={`${item.id}-${item.tamanho}`} className="py-4 px-0">
+                            <ListGroup.Item key={`${item.id_variacao || item.id}-${item.tamanho}`} className="py-4 px-0">
                                 <Row className="align-items-center gy-3">
                                     {/* Imagem do Produto */}
                                     <Col xs={4} sm={2}>
                                         <img
-                                            src={
-                                                typeof item.imagem === 'string' && item.imagem.startsWith('http')
-                                                    ? item.imagem
-                                                    : (item.imagens?.[0]?.imagem || item.imagens?.[0]?.url || item.imagens?.[0] || '')
-                                            }
+                                            src={getMediaUrl(item.imagem || item.imagens?.[0]?.imagem || item.imagens?.[0]?.url || item.imagens?.[0] || '')}
                                             alt={item.nome}
                                             className="img-fluid ms-2 rounded"
                                             style={{ objectFit: 'cover', maxHeight: '90px', width: '70px' }}
@@ -59,7 +56,7 @@ function Cart() {
                                                 <button
                                                     type="button"
                                                     className="btn btn-sm btn-light px-2 py-0 border-0 rounded-0"
-                                                    onClick={() => decreaseQuantity(item.id, item.tamanho)}
+                                                    onClick={() => decreaseQuantity(item.id_variacao || item.id, item.tamanho)}
                                                 >
                                                     -
                                                 </button>
@@ -67,7 +64,7 @@ function Cart() {
                                                 <button
                                                     type="button"
                                                     className="btn btn-sm btn-light px-2 py-0 border-0 rounded-0"
-                                                    onClick={() => increaseQuantity(item.id, item.tamanho)}
+                                                    onClick={() => increaseQuantity(item.id_variacao || item.id, item.tamanho)}
                                                 >
                                                     +
                                                 </button>
@@ -87,7 +84,7 @@ function Cart() {
                                         <button
                                             type="button"
                                             className="button-2 me-3 text-uppercase small fw-bold tracking-wider"
-                                            onClick={() => removeFromCart(item.id, item.tamanho)}
+                                            onClick={() => removeFromCart(item.id_variacao || item.id, item.tamanho)}
                                         >
                                             Remover
                                         </button>

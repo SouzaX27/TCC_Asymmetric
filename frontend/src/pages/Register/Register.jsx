@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import Message from '../../components/Message/Message';
 
 function Register() {
     const navigate = useNavigate();
@@ -41,7 +42,7 @@ function Register() {
             <div className="max-width-500 mx-auto border-grey p-4">
                 <h2 className="fw-bold text-uppercase mb-4 text-black">Criar Conta</h2>
 
-                {error && <div className="alert alert-danger rounded-0 fw-bold">{error}</div>}
+                <Message tipo="erro" texto={error} className="mb-3" />
 
                 <form onSubmit={handleSubmit}>
                     <div className="mb-3">

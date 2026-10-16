@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Container, Row, Col, Alert, Carousel, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Carousel, Spinner } from 'react-bootstrap';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import Button from '../../components/Button/Button';
-import api from '../../services/api';
+import Message from '../../components/Message/Message';
+import api, { getMediaUrl } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import './ProductDetails.css';
 
@@ -16,17 +17,13 @@ function ProductDetails() {
     const [loading, setLoading] = useState(true);
 
     const [selectedSize, setSelectedSize] = useState('');
-    const [cartMessage, setCartMessage] = useState(false);
-
-    const getImageUrl = (img) => {
-        if (!img) return '';
-        if (img.startsWith('http')) return img;
-        return `http://localhost:8000${img}`;
-    };
+    const [selectedVariation, setSelectedVariation] = useState(null);
+    const [cartMessage, setCartMessage] = useState({ tipo: '', texto: '' });
 
     useEffect(() => {
-        setCartMessage(false);
+        setCartMessage({ tipo: '', texto: '' });
         setSelectedSize('');
+        setSelectedVariation(null);
         window.scrollTo(0, 0);
 
         setLoading(true);
@@ -78,14 +75,15 @@ function ProductDetails() {
     : [];
 
     const handleAddToCart = () => {
-        if (!selectedSize && produtoData.variacoes && produtoData.variacoes.length > 0) {
-            alert("Por favor, selecione um tamanho antes de adicionar à sacola.");
+        if (!selectedVariation && produtoData.variacoes && produtoData.variacoes.length > 0) {
+            setCartMessage({ tipo: 'aviso', texto: 'Selecione um tamanho antes de adicionar à sacola.' });
             return;
         }
 
-        addToCart(produtoData, selectedSize);
-        setCartMessage(true);
+        addToCart(produtoData, selectedVariation);
+        setCartMessage({ tipo: 'sucesso', texto: 'Adicionado ao carrinho.' });
         setSelectedSize('');
+        setSelectedVariation(null);
     };
 
     return (
@@ -102,7 +100,7 @@ function ProductDetails() {
                             {imagensList.map((imgObj, index) => (
                                 <Carousel.Item key={imgObj.id_imagem || index}>
                                     <img
-                                        src={getImageUrl(imgObj.imagem)}
+                                        src={getMediaUrl(imgObj.imagem)}
                                         alt={imgObj.medidas ? "Tabela de Medidas" : `${produtoData.nome} Foto ${index + 1}`}
                                         className="d-block w-100 img-fluid product-carousel-img"
                                     />
@@ -133,7 +131,13 @@ function ProductDetails() {
                                             className={`button-2 fs-5 flex-fill py-1 size-btn fw-semibold 
                                                 ${selectedSize === variacao.tamanho ? 'active-size' : ''} 
                                                 ${isEsgotado ? 'opacity-50 text-muted bg-light border-0' : ''}`}
-                                            onClick={() => !isEsgotado && setSelectedSize(variacao.tamanho)}
+                                            onClick={() => {
+                                                if (!isEsgotado) {
+                                                    setSelectedSize(variacao.tamanho);
+                                                    setSelectedVariation(variacao);
+                                                    setCartMessage({ tipo: '', texto: '' });
+                                                }
+                                            }}
                                         >
                                             {variacao.tamanho} {isEsgotado && <span className="small d-block">(Esgotado)</span>}
                                         </button>
@@ -142,12 +146,12 @@ function ProductDetails() {
                             </div>
                         </div>
 
-                        <div className="action-zone mt-auto">
-                            {cartMessage && (
-                                <Alert variant="success" className='rounded-0' onClose={() => setCartMessage(false)} dismissible>
-                                    Adicionado ao carrinho!
-                                </Alert>
-                            )}
+                        <div className="action-zone mt-auto mb">
+                            <Message className="mb-3 p-3 fs-6"
+                                tipo={cartMessage.tipo}
+                                texto={cartMessage.texto}
+                                onClose={() => setCartMessage({ tipo: '', texto: '' })}
+                            />
 
                             <Button onClick={handleAddToCart} className="w-100 button-1 py-3 text-uppercase fw-bold">
                                 Adicionar ao Carrinho

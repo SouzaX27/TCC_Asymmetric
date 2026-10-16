@@ -1,5 +1,5 @@
 // src/context/CartContext.jsx
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useCallback } from 'react';
 
 const CartContext = createContext();
 
@@ -24,31 +24,33 @@ export function CartProvider({ children }) {
 
     const totalItems = cart.reduce((total, item) => total + (item.quantidade || 1), 0);
     
-    const addToCart = (produto, tamanho) => {
+    const addToCart = (produto, variacao) => {
         const produtoId = produto.id || produto.id_produto;
+        const variacaoId = variacao?.id_variacao;
+        const tamanho = variacao?.tamanho || '';
         const imagemUrl = produto.imagens?.[0]?.imagem || produto.imagem?.[0] || '';
 
         setCart((prevCart) => {
             const itemExiste = prevCart.find(
-                (item) => (item.id || item.id_produto) === produtoId && item.tamanho === tamanho
+                (item) => item.id_variacao === variacaoId && (variacaoId || item.id === produtoId) && item.tamanho === tamanho
             );
 
             if (itemExiste) {
                 return prevCart.map((item) =>
-                    (item.id || item.id_produto) === produtoId && item.tamanho === tamanho
+                    item.id_variacao === variacaoId && (variacaoId || item.id === produtoId) && item.tamanho === tamanho
                         ? { ...item, quantidade: item.quantidade + 1 }
                         : item
                 );
             }
 
-            return [...prevCart, { ...produto, id: produtoId, imagem: imagemUrl, tamanho, quantidade: 1 }];
+            return [...prevCart, { ...produto, id: produtoId, id_variacao: variacaoId, imagem: imagemUrl, tamanho, quantidade: 1 }];
         });
     };
 
     const increaseQuantity = (produtoId, tamanho) => {
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item.id === produtoId && item.tamanho === tamanho
+                (item.id_variacao || item.id) === produtoId && item.tamanho === tamanho
                     ? { ...item, quantidade: item.quantidade + 1 }
                     : item
             )
@@ -59,7 +61,7 @@ export function CartProvider({ children }) {
         setCart((prevCart) =>
             prevCart
                 .map((item) =>
-                    item.id === produtoId && item.tamanho === tamanho
+                    (item.id_variacao || item.id) === produtoId && item.tamanho === tamanho
                         ? { ...item, quantidade: item.quantidade - 1 }
                         : item
                 )
@@ -69,11 +71,11 @@ export function CartProvider({ children }) {
 
     const removeFromCart = (produtoId, tamanho) => {
         setCart((prevCart) =>
-            prevCart.filter((item) => !(item.id === produtoId && item.tamanho === tamanho))
+            prevCart.filter((item) => !((item.id_variacao || item.id) === produtoId && item.tamanho === tamanho))
         );
     };
 
-    const clearCart = () => setCart([]);
+    const clearCart = useCallback(() => setCart([]), []);
 
     const cartTotal = cart.reduce((total, item) => total + (item.preco * item.quantidade), 0);
 

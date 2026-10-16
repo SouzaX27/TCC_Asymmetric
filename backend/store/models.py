@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 from django.db import models
 from django.db.models import Sum
 from django.utils import timezone
@@ -256,6 +257,27 @@ class Pedido(models.Model):
     def __str__(self):
         comprador = self.cliente.nome if self.cliente else (self.nome_comprador or self.email_comprador or "Convidado")
         return f"Pedido #{self.id_pedido} - {comprador}"
+
+
+class PagamentoDemonstracao(models.Model):
+    STATUS_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('aprovado', 'Aprovado'),
+        ('expirado', 'Expirado'),
+    ]
+
+    token = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dados_pedido = models.JSONField()
+    valor_total = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente')
+    criado_em = models.DateTimeField(auto_now_add=True)
+    expira_em = models.DateTimeField()
+    id_pagamento_gateway = models.CharField(max_length=36, blank=True)
+    url_checkout = models.URLField(max_length=500, blank=True)
+    pedido = models.ForeignKey(Pedido, on_delete=models.SET_NULL, null=True, blank=True, related_name='pagamentos_demo')
+
+    def __str__(self):
+        return f"Pagamento demonstrativo {self.token} ({self.status})"
 
 
 class ItemPedido(models.Model):
