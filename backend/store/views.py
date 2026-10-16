@@ -1,10 +1,11 @@
 # from django.shortcuts import render
+from decimal import Decimal
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
-from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer, CalcularFreteInputSerializer
+from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer, CalcularFreteInputSerializer, CupomSerializer
 from .services import calcular_frete_melhor_envio
 from .models import Produto, VariacaoProduto, Colecao, Pedido, Cupom
 
@@ -79,6 +80,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
 class CupomViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Cupom.objects.filter(status__iexact='Ativo')
+    serializer_class = CupomSerializer
     permission_classes = [permissions.AllowAny]
 
     @action(detail=False, methods=['post'], url_path='validar')
@@ -104,6 +106,10 @@ class CupomViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"error": mensagem}, status=status.HTTP_400_BAD_REQUEST)
 
         valor_desconto = cupom.calcular_desconto(subtotal)
+        
+        # Converte subtotal para Decimal para evitar o erro de tipos incompatíveis com o Decimal do banco
+        subtotal_decimal = Decimal(str(subtotal))
+        novo_subtotal = subtotal_decimal - Decimal(str(valor_desconto))
 
         return Response({
             "valido": True,
@@ -111,8 +117,8 @@ class CupomViewSet(viewsets.ReadOnlyModelViewSet):
             "id_cupom": cupom.id_cupom,
             "codigo": cupom.codigo,
             "tipo_desconto": cupom.tipo_desconto,
-            "valor_desconto_calculado": round(valor_desconto, 2),
-            "novo_subtotal": round(subtotal - valor_desconto, 2)
+            "valor_desconto_calculado": round(float(valor_desconto), 2),
+            "novo_subtotal": round(float(novo_subtotal), 2)
         }, status=status.HTTP_200_OK)
 
 

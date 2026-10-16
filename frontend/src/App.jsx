@@ -8,6 +8,7 @@ import Home from './pages/Home/Home';
 import Login from './pages/Login/Login';
 import Register from './pages/Register/Register';
 import Products from './pages/Products/Products';
+import Collections from './pages/Collections/Collections';
 import Contact from './pages/Contact/Contact';
 import ProductDetails from './pages/ProductDetails/ProductDetails';
 import { AuthProvider } from './context/AuthContext';
@@ -35,6 +36,7 @@ function App() {
                             <Route path="/minha-conta" element={<Account />} />
                             <Route path="/produtos" element={<Products />} />
                             <Route path="/produtos/:slug" element={<ProductDetails />} />
+                            <Route path="/colecoes/:slug" element={<Collections />} />
                             <Route path="/contato" element={<Contact />} />
                         </Route>
 

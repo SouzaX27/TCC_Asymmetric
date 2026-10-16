@@ -1,30 +1,70 @@
 // src/context/CartContext.jsx
-import { createContext, useState, useContext } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
-    const [cart, setCart] = useState([]);
+    const [cart, setCart] = useState(() => {
+        try {
+            const savedCart = localStorage.getItem('asymmetric_cart');
+            return savedCart ? JSON.parse(savedCart) : [];
+        } catch (error) {
+            console.error("Erro ao carregar carrinho do localStorage:", error);
+            return [];
+        }
+    });
 
-    
+    useEffect(() => {
+        try {
+            localStorage.setItem('asymmetric_cart', JSON.stringify(cart));
+        } catch (error) {
+            console.error("Erro ao salvar carrinho no localStorage:", error);
+        }
+    }, [cart]);
+
     const totalItems = cart.reduce((total, item) => total + (item.quantidade || 1), 0);
     
     const addToCart = (produto, tamanho) => {
+        const produtoId = produto.id || produto.id_produto;
+        const imagemUrl = produto.imagens?.[0]?.imagem || produto.imagem?.[0] || '';
+
         setCart((prevCart) => {
             const itemExiste = prevCart.find(
-                (item) => item.id === produto.id && item.tamanho === tamanho
+                (item) => (item.id || item.id_produto) === produtoId && item.tamanho === tamanho
             );
 
             if (itemExiste) {
                 return prevCart.map((item) =>
-                    item.id === produto.id && item.tamanho === tamanho
+                    (item.id || item.id_produto) === produtoId && item.tamanho === tamanho
                         ? { ...item, quantidade: item.quantidade + 1 }
                         : item
                 );
             }
 
-            return [...prevCart, { ...produto, tamanho, quantidade: 1 }];
+            return [...prevCart, { ...produto, id: produtoId, imagem: imagemUrl, tamanho, quantidade: 1 }];
         });
+    };
+
+    const increaseQuantity = (produtoId, tamanho) => {
+        setCart((prevCart) =>
+            prevCart.map((item) =>
+                item.id === produtoId && item.tamanho === tamanho
+                    ? { ...item, quantidade: item.quantidade + 1 }
+                    : item
+            )
+        );
+    };
+
+    const decreaseQuantity = (produtoId, tamanho) => {
+        setCart((prevCart) =>
+            prevCart
+                .map((item) =>
+                    item.id === produtoId && item.tamanho === tamanho
+                        ? { ...item, quantidade: item.quantidade - 1 }
+                        : item
+                )
+                .filter((item) => item.quantidade > 0)
+        );
     };
 
     const removeFromCart = (produtoId, tamanho) => {
@@ -40,7 +80,17 @@ export function CartProvider({ children }) {
     const cartCount = cart.reduce((total, item) => total + item.quantidade, 0);
 
     return (
-        <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, cartTotal, cartCount, totalItems }}>
+        <CartContext.Provider value={{ 
+            cart, 
+            addToCart, 
+            increaseQuantity, 
+            decreaseQuantity, 
+            removeFromCart, 
+            clearCart, 
+            cartTotal, 
+            cartCount, 
+            totalItems 
+        }}>
             {children}
         </CartContext.Provider>
     );

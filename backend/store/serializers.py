@@ -18,7 +18,7 @@ class VariacaoProdutoSerializer(serializers.ModelSerializer):
 class ColecaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Colecao
-        fields = ['id_colecao', 'nome', 'descricao', 'ativa']
+        fields = ['id_colecao', 'nome', 'slug', 'descricao', 'ativa']
 
 
 class ImagemProdutoSerializer(serializers.ModelSerializer):

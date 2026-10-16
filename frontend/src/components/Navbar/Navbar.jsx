@@ -116,7 +116,7 @@ function Navbar() {
                                             {colecoes.map((colecao) => (
                                                 <li className="nav-item" key={colecao.id_colecao || colecao.slug}>
                                                     <Link 
-                                                        to={`/produtos?colecao=${colecao.slug}`} 
+                                                        to={`/colecoes/${colecao.slug}`}
                                                         className="nav-link fs-5 py-1" 
                                                         onClick={handleClose}
                                                     >

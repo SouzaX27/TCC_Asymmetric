@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import api from '../../services/api';
+import Message from '../../components/Message/Message';
 
 function Checkout() {
     const navigate = useNavigate();
-    const { cart, cartTotal, clearCart } = useCart();
+    const { cart, cartTotal } = useCart();
 
     const [formData, setFormData] = useState(() => {
         const dadosSalvos = sessionStorage.getItem('checkout_formData');
@@ -26,6 +28,12 @@ function Checkout() {
     const [opcoesFrete, setOpcoesFrete] = useState([]);
     const [freteSelecionado, setFreteSelecionado] = useState(null);
 
+    const [desconto, setDesconto] = useState(0);
+    const [cupomAplicado, setCupomAplicado] = useState(null);
+    const [mensagemCupom, setMensagemCupom] = useState({ tipo: '', texto: '' });
+    const [mensagemCep, setMensagemCep] = useState({ tipo: '', texto: '' });
+    const [mensagemGeral, setMensagemGeral] = useState({ tipo: '', texto: '' });
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({
@@ -34,23 +42,52 @@ function Checkout() {
         }));
     };
 
-    const calcularFreteSimulado = (uf) => {
-        let baseValor = 18.50;
-        if (['SP', 'RJ', 'MG', 'PR'].includes(uf)) {
-            baseValor = 14.30;
-        } else if (['RS', 'SC', 'GO', 'DF', 'ES'].includes(uf)) {
-            baseValor = 22.80;
-        } else {
-            baseValor = 34.90;
+    const calcularFrete = async (cepDestino) => {
+        try {
+            const response = await api.post('/frete/calcular/', {
+                cep_destino: cepDestino,
+                itens: cart.map(item => ({
+                    variacao_produto: item.id_variacao || item.id || item.id_produto,
+                    quantidade: item.quantidade
+                }))
+            });
+
+            const data = response.data;
+            const rawOpcoes = Array.isArray(data.opcoes) ? data.opcoes : (Array.isArray(data) ? data : []);
+
+            const opcoes = rawOpcoes.map((op, idx) => {
+                const dias = op.prazo_dias || op.prazo || 0;
+                const textoPrazo = dias === 1 ? '1 dia útil' : `${dias} dias úteis`;
+
+                return {
+                    id: op.id || op.codigo || `opcao-${idx}`,
+                    nome: op.nome || op.servico || 'Entrega',
+                    valor: Number(op.valor || op.preco || op.price || 0),
+                    prazo: textoPrazo
+                };
+            });
+
+            if (opcoes.length === 0) {
+                throw new Error("Nenhuma opção de frete retornada pela API.");
+            }
+
+            setOpcoesFrete(opcoes);
+            setFreteSelecionado(opcoes[0]);
+            setMensagemCep({ tipo: '', texto: '' });
+        } catch (error) {
+            console.error('Erro ao calcular o frete via API:', error.response?.data || error.message);
+            
+            const uf = formData.estado || 'SP';
+            let baseValor = ['SP', 'RJ', 'MG', 'PR'].includes(uf) ? 14.30 : 24.90;
+
+            const opcoesFallback = [
+                { id: 'pac', nome: 'Padrão (PAC)', valor: Number(baseValor.toFixed(2)), prazo: '5 dias úteis' },
+                { id: 'sedex', nome: 'Expresso (SEDEX)', valor: Number((baseValor + 12.00).toFixed(2)), prazo: '2 dias úteis' }
+            ];
+
+            setOpcoesFrete(opcoesFallback);
+            setFreteSelecionado(opcoesFallback[0]);
         }
-
-        const opcoes = [
-            { id: 'pac', nome: 'Padrão (PAC)', valor: Number((baseValor).toFixed(2)), prazo: '5 a 8 dias úteis' },
-            { id: 'sedex', nome: 'Expresso (SEDEX)', valor: Number((baseValor + 11.45).toFixed(2)), prazo: '1 a 3 dias úteis' }
-        ];
-
-        setOpcoesFrete(opcoes);
-        setFreteSelecionado(opcoes[0]);
     };
 
     const handleCepBlur = async (e) => {
@@ -70,35 +107,62 @@ function Checkout() {
                         estado: data.uf
                     }));
 
-                    calcularFreteSimulado(data.uf);
+                    calcularFrete(cepLimpo);
                 } else {
-                    alert('CEP não encontrado. Por favor, verifique o número digitado.');
+                    setMensagemCep({ tipo: 'erro', texto: 'CEP não encontrado. Verifique o número digitado.' });
                     setOpcoesFrete([]);
                     setFreteSelecionado(null);
                 }
             } catch (error) {
                 console.error('Erro ao buscar o CEP:', error);
+                setMensagemCep({ tipo: 'erro', texto: 'Erro ao consultar o CEP. Tente novamente.' });
             }
         }
     };
 
-    const valorFrete = freteSelecionado ? freteSelecionado.valor : 0;
-    const totalComFrete = cartTotal + valorFrete;
+    const handleAplicarCupom = async () => {
+        if (!formData.cupom) {
+            setMensagemCupom({ tipo: 'erro', texto: 'Informe o código do cupom.' });
+            return;
+        }
+
+        try {
+            const response = await api.post('/cupons/validar/', {
+                codigo: formData.cupom.trim(),
+                subtotal: cartTotal
+            });
+
+            const data = response.data;
+            if (data.valido) {
+                setDesconto(data.valor_desconto_calculado);
+                setCupomAplicado(data);
+                setMensagemCupom({ tipo: 'sucesso', texto: `Cupom "${data.codigo}" aplicado com sucesso! (-R$ ${data.valor_desconto_calculado.toFixed(2)})` });
+            }
+        } catch (error) {
+            console.error('Erro ao validar cupom:', error.response?.data || error.message);
+            const erroMsg = error.response?.data?.error || 'Cupom inválido ou expirado.';
+            setDesconto(0);
+            setCupomAplicado(null);
+            setMensagemCupom({ tipo: 'erro', texto: erroMsg });
+        }
+    };
+
+    const valorFrete = freteSelecionado ? Number(freteSelecionado.valor || 0) : 0;
+    const totalComFrete = Math.max(0, cartTotal - desconto) + valorFrete;
 
     const handleSubmit = (e) => {
         e.preventDefault();
 
         if (cart.length === 0) {
-            alert('Seu carrinho está vazio!');
+            setMensagemGeral({ tipo: 'erro', texto: 'Seu carrinho está vazio!' });
             return;
         }
 
         if (!freteSelecionado) {
-            alert('Por favor, informe um CEP válido para calcular o frete.');
+            setMensagemGeral({ tipo: 'erro', texto: 'Por favor, informe um CEP válido para calcular o frete.' });
             return;
         }
 
-        // Estrutura completa dos dados do pedido
         const pedidoRascunho = {
             cliente: formData,
             frete: freteSelecionado,
@@ -106,11 +170,9 @@ function Checkout() {
             totalGeral: totalComFrete
         };
 
-        // Salva no sessionStorage para persistir
         sessionStorage.setItem('checkout_formData', JSON.stringify(formData));
         sessionStorage.setItem('checkout_pedido', JSON.stringify(pedidoRascunho));
 
-        // Redireciona para a página de pagamento/revisão
         navigate('/pagamento');
     };
 
@@ -119,7 +181,7 @@ function Checkout() {
             <div className="container mt-5 pt-5 text-center">
                 <div className="max-width-600 mx-auto">
                     <h2 className="fw-bold text-uppercase mb-3">Seu carrinho está vazio</h2>
-                    <p className=" text-muted mb-4">Adicione alguns produtos para continuar com o checkout.</p>
+                    <p className="text-muted mb-4">Adicione alguns produtos para continuar com o checkout.</p>
                     <Link to="/inicio" className="button-1 text-decoration-none d-inline-block px-4 py-3 fw-bold text-uppercase">
                         Voltar para a Loja
                     </Link>
@@ -187,6 +249,7 @@ function Checkout() {
                                     placeholder="00000-000"
                                     required
                                 />
+                                <Message tipo={mensagemCep.tipo} texto={mensagemCep.texto} />
                             </div>
                             <div className="col-md-8">
                                 <label className="form-label fs-5">Rua / Logradouro</label>
@@ -263,7 +326,9 @@ function Checkout() {
                                                 {opcao.nome} <small className="text-muted fs-6">({opcao.prazo})</small>
                                             </label>
                                         </div>
-                                        <span className="fw-bold fs-5">R$ {opcao.valor.toFixed(2)}</span>
+                                        <span className="fw-bold fs-5">
+                                            R$ {Number(opcao.valor || 0).toFixed(2)}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -298,7 +363,15 @@ function Checkout() {
                                     onChange={handleChange}
                                     placeholder="Ex: PR1M31R4C0MPR4"
                                 />
+                                <button
+                                    type="button"
+                                    className="button-1 px-4 text-uppercase fw-bold"
+                                    onClick={handleAplicarCupom}
+                                >
+                                    Aplicar
+                                </button>
                             </div>
+                            <Message tipo={mensagemCupom.tipo} texto={mensagemCupom.texto} />
                         </div>
 
                         <div className="border-top pt-3 mb-3 fs-5">
@@ -306,6 +379,12 @@ function Checkout() {
                                 <span>Subtotal:</span>
                                 <span>R$ {cartTotal.toFixed(2)}</span>
                             </div>
+                            {desconto > 0 && (
+                                <div className="d-flex justify-content-between mb-2 text-success">
+                                    <span>Desconto:</span>
+                                    <span>- R$ {desconto.toFixed(2)}</span>
+                                </div>
+                            )}
                             <div className="d-flex justify-content-between mb-2">
                                 <span>Frete:</span>
                                 <span>{freteSelecionado ? `R$ ${valorFrete.toFixed(2)}` : 'Digite o CEP'}</span>
@@ -345,7 +424,9 @@ function Checkout() {
                             <span>R$ {totalComFrete.toFixed(2)}</span>
                         </div>
 
-                        <button type="submit" className="button-1 w-100 py-3 fw-bold text-uppercase">
+                        <Message tipo={mensagemGeral.tipo} texto={mensagemGeral.texto} />
+
+                        <button type="submit" className="button-1 w-100 py-3 fw-bold text-uppercase mt-2">
                             Avançar
                         </button>
                     </div>

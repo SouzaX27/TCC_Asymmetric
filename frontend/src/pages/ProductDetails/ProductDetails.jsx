@@ -161,7 +161,12 @@ function ProductDetails() {
 
                         <div className="product-description mb-4">
                             <h5 className="fw-bold text-uppercase text-grey fs-5 mb-2">Descrição</h5>
-                            <p className="text-grey leading-relaxed">{produtoData.descricao}</p>
+                            <div className="text-grey leading-relaxed" style={{ whiteSpace: 'pre-line' }}>
+                                {produtoData.descricao 
+                                    ? produtoData.descricao.replace(/\\n/g, '\n')
+                                    : ''
+                                }
+                            </div>
                         </div>
                     </div>
                 </Col>

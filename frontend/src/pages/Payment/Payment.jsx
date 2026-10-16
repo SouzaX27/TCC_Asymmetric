@@ -267,7 +267,7 @@ const concluirEIrParaConfirmacao = () => {
                         </div>
 
                         <div className="d-flex justify-content-between fs-3 fw-bold mb-4 border-top pt-3">
-                            <span>Total Final:</span>
+                            <span>Total:</span>
                             <span>R$ {totalGeral.toFixed(2)}</span>
                         </div>
 
