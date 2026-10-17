@@ -133,8 +133,8 @@ function Payment() {
                         <p className="mb-1"><strong>Cliente:</strong> {cliente.nome}</p>
                         <p className="mb-1"><strong>E-mail:</strong> {cliente.email}</p>
                         <p className="mb-3"><strong>Entrega:</strong> {cliente.logradouro}, nº {cliente.numero}, {cliente.bairro}, {cliente.cidade}/{cliente.estado}</p>
-                        <p className="mb-1"><strong>Frete:</strong> {frete.nome} ({frete.prazo})</p>
                         <p className="mb-1"><strong>Subtotal:</strong> {subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p className="mb-1"><strong>Frete:</strong> {frete.nome} ({frete.prazo}): {frete.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                         {desconto > 0 && <p className="mb-1 text-success"><strong>Desconto:</strong> - {desconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                         <p className="fs-5 fw-bold mb-0"><strong>Total:</strong> {totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                     </section>
