@@ -29,7 +29,7 @@ async function lerJson(requisicao) {
     for await (const trecho of requisicao) {
         corpo += trecho;
         if (Buffer.byteLength(corpo) > LIMITE_CORPO_BYTES) {
-            throw new Error('Conteudo excede o limite permitido.');
+            throw new Error('O conteúdo excede o limite permitido.');
         }
     }
     return JSON.parse(corpo || '{}');
@@ -40,6 +40,15 @@ function atualizarStatusPagamento(pagamento) {
         pagamento.status = 'expirado';
     }
     return pagamento.status;
+}
+
+function limparPagamentosAntigos(pagamentos) {
+    const limiteRetencao = Date.now() - DURACAO_COBRANCA_MS;
+    for (const [idPagamento, pagamento] of pagamentos) {
+        if (pagamento.expiraEm <= limiteRetencao) {
+            pagamentos.delete(idPagamento);
+        }
+    }
 }
 
 function paginaPagamento(idPagamento) {
@@ -58,10 +67,10 @@ function paginaPagamento(idPagamento) {
 <body>
 <main class="painel">
 <h1>Pagamento demonstrativo</h1>
-<p class="texto-secundario">Esta simulacao nao movimenta dinheiro real.</p>
+<p class="texto-secundario">Esta simulação não movimenta dinheiro real.</p>
 <div id="valor" class="valor" aria-live="polite">Carregando...</div>
-<div id="estado" class="aviso" role="status">Consultando cobranca...</div>
-<button id="aprovar" type="button" disabled>Confirmar pagamento ficticio</button>
+<div id="estado" class="aviso" role="status">Consultando cobrança...</div>
+<button id="aprovar" type="button" disabled>Confirmar pagamento fictício</button>
 </main>
 <script src="/assets/axios.min.js"></script>
 <script>
@@ -78,28 +87,28 @@ async function atualizarPagamento(){
         const pagamento = resposta.data;
     elementoValor.textContent = formatarMoeda(pagamento.valor);
     if (pagamento.status === 'aprovado') {
-      elementoEstado.textContent = 'Pagamento ficticio confirmado. Voce ja pode fechar esta pagina.';
+            elementoEstado.textContent = 'Pagamento fictício confirmado. Você já pode fechar esta página.';
       botaoAprovar.hidden = true;
     } else if (pagamento.status === 'expirado') {
-      elementoEstado.textContent = 'Esta cobranca expirou. Solicite um novo QR Code ao apresentador.';
+            elementoEstado.textContent = 'Esta cobrança expirou. Solicite um novo QR Code ao apresentador.';
       botaoAprovar.hidden = true;
     } else {
-      elementoEstado.textContent = 'Confira o valor e confirme a simulacao.';
+            elementoEstado.textContent = 'Confira o valor e confirme a simulação.';
       botaoAprovar.disabled = false;
     }
   } catch (erro) {
-        elementoEstado.textContent = erro.response?.data?.erro || erro.message;
+        elementoEstado.textContent = erro.response?.data?.erro || 'Não foi possível consultar esta cobrança.';
     elementoEstado.classList.add('erro');
   }
 }
 botaoAprovar.addEventListener('click', async () => {
   botaoAprovar.disabled = true;
-  elementoEstado.textContent = 'Confirmando...';
+    elementoEstado.textContent = 'Confirmando pagamento...';
   try {
         await axios.post('/api/pagamentos-publicos/' + idPagamento + '/aprovar');
     await atualizarPagamento();
   } catch (erro) {
-        elementoEstado.textContent = erro.response?.data?.erro || erro.message;
+        elementoEstado.textContent = erro.response?.data?.erro || 'Não foi possível confirmar o pagamento.';
     elementoEstado.classList.add('erro');
     botaoAprovar.disabled = false;
   }
@@ -110,8 +119,31 @@ atualizarPagamento();
 </html>`;
 }
 
+function paginaInicial() {
+    return `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Gateway demonstrativo | Asymmetric</title>
+<style>
+body{font-family:system-ui,sans-serif;color:#171717;background:#f4f5f3;margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;box-sizing:border-box}.painel{width:min(100%,520px);background:#fff;border:1px solid #7e7e7e;padding:28px;box-sizing:border-box}h1{font-size:1.5rem;margin:0 0 12px}.texto-secundario{color:#666}a{color:#182b24}
+</style>
+</head>
+<body>
+<main class="painel">
+<h1>Gateway demonstrativo ativo</h1>
+<p>Este serviço processa pagamentos fictícios por QR Code para a apresentação da Asymmetric.</p>
+<p class="texto-secundario">Nenhuma cobrança real é realizada.</p>
+<a href="/saude">Verificar disponibilidade do serviço</a>
+</main>
+</body>
+</html>`;
+}
+
 export function criarServidorGateway({ segredo, urlPublica = '', pagamentos = new Map() }) {
-    if (!segredo) throw new Error('SEGREDO_COMPARTILHADO e obrigatorio.');
+    if (!segredo) throw new Error('A variável SEGREDO_COMPARTILHADO é obrigatória.');
 
     return createServer(async (requisicao, resposta) => {
         const url = new URL(requisicao.url, 'http://gateway.local');
@@ -128,35 +160,46 @@ export function criarServidorGateway({ segredo, urlPublica = '', pagamentos = ne
             return;
         }
 
+        if (requisicao.method === 'GET' && url.pathname === '/') {
+            resposta.writeHead(200, {
+                ...cabecalhosSaude,
+                'Content-Type': 'text/html; charset=utf-8',
+                'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+            });
+            resposta.end(paginaInicial());
+            return;
+        }
+
         if (requisicao.method === 'POST' && url.pathname === '/api/pagamentos') {
             if (!autorizacaoValida(requisicao, segredo)) {
-                return responderJson(resposta, 401, { erro: 'Nao autorizado.' });
+                return responderJson(resposta, 401, { erro: 'Não autorizado.' });
             }
 
             let entrada;
             try {
                 entrada = await lerJson(requisicao);
             } catch {
-                return responderJson(resposta, 400, { erro: 'Dados JSON invalidos.' });
+                return responderJson(resposta, 400, { erro: 'O conteúdo enviado não é um JSON válido.' });
             }
 
             const valor = Number(entrada.valor);
             if (!Number.isFinite(valor) || valor <= 0 || valor > 99999999) {
-                return responderJson(resposta, 400, { erro: 'Valor invalido.' });
+                return responderJson(resposta, 400, { erro: 'Informe um valor válido para a cobrança.' });
             }
-            if (typeof entrada.referencia !== 'string' || entrada.referencia.length > 100) {
-                return responderJson(resposta, 400, { erro: 'Referencia invalida.' });
+            if (typeof entrada.referencia !== 'string' || !entrada.referencia.trim() || entrada.referencia.length > 100) {
+                return responderJson(resposta, 400, { erro: 'Informe uma referência válida para a cobrança.' });
             }
 
             const idPagamento = randomUUID();
             const pagamento = {
                 idPagamento,
-                referencia: entrada.referencia,
+                referencia: entrada.referencia.trim(),
                 valor: Math.round(valor * 100) / 100,
                 status: 'pendente',
                 criadoEm: Date.now(),
                 expiraEm: Date.now() + DURACAO_COBRANCA_MS,
             };
+            limparPagamentosAntigos(pagamentos);
             pagamentos.set(idPagamento, pagamento);
 
             const urlBase = (urlPublica || process.env.URL_PUBLICA || `http://${requisicao.headers.host}`).replace(/\/$/, '');
@@ -171,11 +214,11 @@ export function criarServidorGateway({ segredo, urlPublica = '', pagamentos = ne
         const correspondenciaPrivada = url.pathname.match(/^\/api\/pagamentos\/([0-9a-f-]+)$/i);
         if (requisicao.method === 'GET' && correspondenciaPrivada) {
             if (!autorizacaoValida(requisicao, segredo)) {
-                return responderJson(resposta, 401, { erro: 'Nao autorizado.' });
+                return responderJson(resposta, 401, { erro: 'Não autorizado.' });
             }
             const pagamento = pagamentos.get(correspondenciaPrivada[1]);
             if (!pagamento) {
-                return responderJson(resposta, 404, { erro: 'Pagamento nao encontrado.' });
+                return responderJson(resposta, 404, { erro: 'Pagamento não encontrado.' });
             }
             return responderJson(resposta, 200, {
                 id_pagamento: pagamento.idPagamento,
@@ -190,7 +233,7 @@ export function criarServidorGateway({ segredo, urlPublica = '', pagamentos = ne
         if (correspondenciaPublica) {
             const pagamento = pagamentos.get(correspondenciaPublica[1]);
             if (!pagamento) {
-                return responderJson(resposta, 404, { erro: 'Cobranca nao encontrada.' });
+                return responderJson(resposta, 404, { erro: 'Cobrança não encontrada.' });
             }
 
             const statusAtual = atualizarStatusPagamento(pagamento);
@@ -203,7 +246,7 @@ export function criarServidorGateway({ segredo, urlPublica = '', pagamentos = ne
             }
             if (requisicao.method === 'POST' && correspondenciaPublica[2]) {
                 if (statusAtual === 'expirado') {
-                    return responderJson(resposta, 410, { erro: 'Esta cobranca expirou.' });
+                    return responderJson(resposta, 410, { erro: 'Esta cobrança expirou.' });
                 }
                 pagamento.status = 'aprovado';
                 return responderJson(resposta, 200, { valor: pagamento.valor, status: pagamento.status });
@@ -215,7 +258,7 @@ export function criarServidorGateway({ segredo, urlPublica = '', pagamentos = ne
             const pagamento = pagamentos.get(correspondenciaCheckout[1]);
             if (!pagamento) {
                 resposta.writeHead(404, { ...cabecalhosSaude, 'Content-Type': 'text/plain; charset=utf-8' });
-                resposta.end('Cobranca nao encontrada.');
+                resposta.end('Cobrança não encontrada.');
                 return;
             }
 
@@ -239,7 +282,7 @@ export function criarServidorGateway({ segredo, urlPublica = '', pagamentos = ne
             return;
         }
 
-        responderJson(resposta, 404, { erro: 'Pagina nao encontrada.' });
+        responderJson(resposta, 404, { erro: 'Página não encontrada.' });
     });
 }
 
