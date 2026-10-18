@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import api, { definirTokenAcesso } from '../services/api';
 
 const AuthContext = createContext({});
 
@@ -7,68 +8,91 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {        
-        const savedUser = localStorage.getItem('current_user');
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
-        }
-        setLoading(false);
-    }, []);
-    
-    const register = async (name, email, password) => {
-        const registeredUsers = JSON.parse(localStorage.getItem('registered_users') || '[]');
-        
-        const emailExists = registeredUsers.some(
-            (u) => u.email.toLowerCase() === email.toLowerCase()
-        );
+        localStorage.removeItem('current_user');
+        localStorage.removeItem('registered_users');
+        localStorage.removeItem('meus_pedidos');
 
-        if (emailExists) {
-            return { success: false, message: 'Este e-mail já está cadastrado!' };
-        }
-        
-        const newUser = {
-            id: `USR-${Math.floor(1000 + Math.random() * 9000)}`,
-            name,
-            email,
-            password
+        let ativo = true;
+        const encerrarSessao = () => setUser(null);
+        window.addEventListener('asymmetric:session-expired', encerrarSessao);
+        const restaurarSessao = async () => {
+            try {
+                const respostaToken = await api.post('usuarios/token/refresh/', {});
+                definirTokenAcesso(respostaToken.data.access);
+                const respostaPerfil = await api.get('usuarios/me/');
+                if (ativo) {
+                    setUser({
+                        id: respostaPerfil.data.id_cliente,
+                        name: respostaPerfil.data.nome,
+                        email: respostaPerfil.data.email,
+                        phone: respostaPerfil.data.telefone,
+                        points: respostaPerfil.data.pontos
+                    });
+                }
+            } catch {
+                definirTokenAcesso(null);
+                if (ativo) setUser(null);
+            } finally {
+                if (ativo) setLoading(false);
+            }
         };
-        
-        registeredUsers.push(newUser);
-        localStorage.setItem('registered_users', JSON.stringify(registeredUsers));
-        
-        const userData = { id: newUser.id, name: newUser.name, email: newUser.email };
-        setUser(userData);
-        localStorage.setItem('current_user', JSON.stringify(userData));
 
-        return { success: true };
+        restaurarSessao();
+        return () => {
+            ativo = false;
+            window.removeEventListener('asymmetric:session-expired', encerrarSessao);
+        };
+    }, []);
+
+    const register = async (name, phone, email, password, aceitaTermos) => {
+        try {
+            await api.post('usuarios/registrar/', {
+                nome: name,
+                telefone: phone,
+                email,
+                password,
+                aceita_termos: aceitaTermos
+            });
+            return { success: true };
+        } catch (error) {
+            const erros = error.response?.data;
+            const mensagem = Object.values(erros || {}).flat().join(' ');
+            return { success: false, message: mensagem || 'Não foi possível criar a conta.' };
+        }
     };
     
     const login = async (email, password) => {
-        const registeredUsers = JSON.parse(localStorage.getItem('registered_users') || '[]');
-        
-        const foundUser = registeredUsers.find(
-            (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-        );
-        
-        const isDefaultTest = email === 'cliente@gmail.com' && password === '123456';
-
-        if (foundUser || isDefaultTest) {
-            const userData = {
-                id: foundUser ? foundUser.id : 'USR-01',
-                name: foundUser ? foundUser.name : 'Cliente asymmetric',
-                email: email
-            };
-
-            setUser(userData);
-            localStorage.setItem('current_user', JSON.stringify(userData));
+        try {
+            const respostaLogin = await api.post('usuarios/login/', {
+                username: email.trim().toLowerCase(),
+                password
+            });
+            definirTokenAcesso(respostaLogin.data.access);
+            const respostaPerfil = await api.get('usuarios/me/');
+            setUser({
+                id: respostaPerfil.data.id_cliente,
+                name: respostaPerfil.data.nome,
+                email: respostaPerfil.data.email,
+                phone: respostaPerfil.data.telefone,
+                points: respostaPerfil.data.pontos
+            });
             return { success: true };
-        } else {
-            return { success: false, message: 'E-mail ou senha incorretos (ou conta não existente)!' };
+        } catch (error) {
+            definirTokenAcesso(null);
+            const detalhe = error.response?.data?.detail;
+            return { success: false, message: detalhe || 'E-mail ou senha incorretos.' };
         }
     };
     
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem('current_user');
+    const logout = async () => {
+        try {
+            await api.post('usuarios/logout/', {});
+        } catch {
+            // A sessão local é encerrada mesmo se a API estiver indisponível.
+        } finally {
+            definirTokenAcesso(null);
+            setUser(null);
+        }
     };
 
     return (

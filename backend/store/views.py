@@ -10,9 +10,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer, CalcularFreteInputSerializer, CupomSerializer
 from .services import calcular_frete_melhor_envio, criar_pagamento_gateway_demo, consultar_pagamento_gateway_demo
 from .models import Produto, VariacaoProduto, Colecao, Pedido, Cupom, PagamentoDemonstracao
+
+NOME_COOKIE_ATUALIZACAO = 'refresh_token'
+CAMINHO_COOKIE_ATUALIZACAO = '/api/usuarios/'
 
 class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Colecao.objects.filter(ativa=True)
@@ -50,17 +55,66 @@ class MeView(APIView):
 
     def get(self, request):
         # request.user vem do token JWT enviado no Header
+        if not hasattr(request.user, 'cliente'):
+            return Response({'erro': 'Perfil de cliente não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         cliente = request.user.cliente
         serializer = ClientePerfilSerializer(cliente)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request):
+        if not hasattr(request.user, 'cliente'):
+            return Response({'erro': 'Perfil de cliente não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         cliente = request.user.cliente
         serializer = ClientePerfilSerializer(cliente, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LoginClienteView(TokenObtainPairView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        resposta = Response({'access': str(serializer.validated_data['access'])})
+        resposta.set_cookie(
+            NOME_COOKIE_ATUALIZACAO,
+            str(serializer.validated_data['refresh']),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+            path=CAMINHO_COOKIE_ATUALIZACAO,
+        )
+        return resposta
+
+
+class AtualizarTokenClienteView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token_atualizacao = request.COOKIES.get(NOME_COOKIE_ATUALIZACAO)
+        if not token_atualizacao:
+            return Response({'erro': 'Sessão expirada. Entre novamente.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        serializer = TokenRefreshSerializer(data={'refresh': token_atualizacao})
+        serializer.is_valid(raise_exception=True)
+        return Response({'access': serializer.validated_data['access']})
+
+
+class LogoutClienteView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        resposta = Response(status=status.HTTP_204_NO_CONTENT)
+        resposta.delete_cookie(
+            NOME_COOKIE_ATUALIZACAO,
+            path=CAMINHO_COOKIE_ATUALIZACAO,
+            samesite='Lax',
+        )
+        return resposta
 
 class PedidoViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PedidoSerializer

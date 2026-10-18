@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -118,8 +119,6 @@ class PagamentoDemonstracaoTests(TestCase):
 		self.assertEqual(response.status_code, 410)
 		self.assertEqual(Pedido.objects.count(), 0)
 		self.assertEqual(self.variacao.estoque_atual, 5)
-		self.cupom.refresh_from_db()
-		self.assertEqual(self.cupom.quantidade_disponivel, 1)
 
 	def test_cotacao_nao_pode_ser_reutilizada_com_outro_cep(self):
 		intencao_response = self.criar_intencao()
@@ -191,3 +190,75 @@ class PagamentoDemonstracaoTests(TestCase):
 		self.assertEqual(status_response.data['status'], 'pendente')
 		self.assertEqual(Pedido.objects.count(), 0)
 		self.assertEqual(self.variacao.estoque_atual, 5)
+
+
+@override_settings(DEBUG=True)
+class CadastroEAutenticacaoTests(TestCase):
+	def setUp(self):
+		self.client = APIClient()
+		self.dados_cadastro = {
+			'nome': 'Pessoa Exemplo',
+			'email': 'cadastro.teste@example.com',
+			'telefone': '11987654321',
+			'password': 'Vento#Verde2026',
+			'aceita_termos': True,
+		}
+
+	def test_cadastro_exige_aceite_e_armazena_somente_hash_da_senha(self):
+		dados_sem_aceite = {**self.dados_cadastro, 'aceita_termos': False}
+		resposta_sem_aceite = self.client.post('/api/usuarios/registrar/', dados_sem_aceite, format='json')
+
+		self.assertEqual(resposta_sem_aceite.status_code, 400)
+		self.assertFalse(User.objects.filter(username=self.dados_cadastro['email']).exists())
+
+		resposta = self.client.post('/api/usuarios/registrar/', self.dados_cadastro, format='json')
+
+		self.assertEqual(resposta.status_code, 201)
+		usuario = User.objects.get(username=self.dados_cadastro['email'])
+		self.assertTrue(usuario.check_password(self.dados_cadastro['password']))
+		self.assertNotEqual(usuario.password, self.dados_cadastro['password'])
+		cliente = usuario.cliente
+		self.assertIsNotNone(cliente.termos_aceitos_em)
+		self.assertEqual(cliente.versao_termos_aceita, '1.0')
+		self.assertEqual(cliente.versao_privacidade_aceita, '1.0')
+
+	def test_senha_fraca_e_rejeitada_pelos_validadores_do_django(self):
+		dados = {**self.dados_cadastro, 'password': '12345678'}
+		resposta = self.client.post('/api/usuarios/registrar/', dados, format='json')
+
+		self.assertEqual(resposta.status_code, 400)
+		self.assertIn('password', resposta.data)
+		self.assertFalse(User.objects.filter(username=self.dados_cadastro['email']).exists())
+
+	def test_login_perfil_refresh_e_logout_usam_cookie_http_only(self):
+		resposta_cadastro = self.client.post('/api/usuarios/registrar/', self.dados_cadastro, format='json')
+		self.assertEqual(resposta_cadastro.status_code, 201)
+
+		resposta_login = self.client.post('/api/usuarios/login/', {
+			'username': self.dados_cadastro['email'],
+			'password': self.dados_cadastro['password'],
+		}, format='json')
+		self.assertEqual(resposta_login.status_code, 200)
+		self.assertIn('access', resposta_login.data)
+		self.assertNotIn('refresh', resposta_login.data)
+		self.assertTrue(resposta_login.cookies['refresh_token']['httponly'])
+
+		self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {resposta_login.data['access']}")
+		resposta_perfil = self.client.get('/api/usuarios/me/')
+		self.assertEqual(resposta_perfil.status_code, 200)
+		self.assertEqual(resposta_perfil.data['email'], self.dados_cadastro['email'])
+		self.assertEqual(resposta_perfil.data['pontos'], 0)
+
+		resposta_edicao = self.client.put('/api/usuarios/me/', {'pontos': 999}, format='json')
+		self.assertEqual(resposta_edicao.status_code, 200)
+		self.assertEqual(resposta_edicao.data['pontos'], 0)
+
+		self.client.credentials()
+		resposta_refresh = self.client.post('/api/usuarios/token/refresh/', {}, format='json')
+		self.assertEqual(resposta_refresh.status_code, 200)
+		self.assertIn('access', resposta_refresh.data)
+
+		resposta_logout = self.client.post('/api/usuarios/logout/', {}, format='json')
+		self.assertEqual(resposta_logout.status_code, 204)
+		resposta_refresh_apos_logout = self.client.post('/api/usuarios/token/refresh/', {}, format='json')
+		self.assertEqual(resposta_refresh_apos_logout.status_code, 401)

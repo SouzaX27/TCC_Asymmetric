@@ -4,14 +4,26 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import Button from '../../components/Button/Button';
 import { getMediaUrl } from '../../services/api';
+import Message from '../../components/Message/Message';
+import Spinner from 'react-bootstrap/Spinner';
 
 function Cart() {
-    const { cart, removeFromCart, increaseQuantity, decreaseQuantity, cartTotal } = useCart();
+    const { cart, removeFromCart, increaseQuantity, decreaseQuantity, cartTotal, cartLoading, cartError } = useCart();
+
+    if (cartLoading) {
+        return (
+            <Container className="py-5 text-center my-5">
+                <Spinner animation="border" variant="dark" />
+                <p className="text-muted mt-3">Atualizando carrinho...</p>
+            </Container>
+        );
+    }
 
     // Se o carrinho estiver vazio, exibe uma tela amigável para o usuário voltar à loja
     if (cart.length === 0) {
         return (
             <Container className="py-5 text-center d-flex flex-column align-items-center justify-content-center mt-5">
+                <Message tipo="erro" texto={cartError} className="mb-3" />
                 <h2 className="fw-bold text-uppercase mb-3">Seu carrinho está vazio</h2>
                 <p className="text-muted mb-4">Que tal dar uma olhada nos nossos produtos?</p>
                 <Link to="/produtos" className="button-1 text-uppercase px-4 py-3 fw-bold">
@@ -23,6 +35,7 @@ function Cart() {
 
     return (
         <Container className="py-5 min-vh-100 cart-page">
+            <Message tipo="erro" texto={cartError} className="mb-3" />
             <h1 className="fw-bold text-black text-uppercase mb-4 border-bottom pb-3">Seu Carrinho</h1>
 
             <Row className="g-4">

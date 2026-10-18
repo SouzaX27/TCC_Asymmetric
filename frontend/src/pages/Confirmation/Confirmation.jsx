@@ -120,7 +120,7 @@ function Confirmation() {
                             <span>{totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
 
-                        <p className="text-muted">O pagamento é demonstrativo. Nenhuma cobrança real será feita.</p>
+                        {/* <p className="text-muted">O pagamento é demonstrativo. Nenhuma cobrança real será feita.</p> */}
                         <Message tipo={mensagem.tipo} texto={mensagem.texto} />
                         <button
                             type="button"
