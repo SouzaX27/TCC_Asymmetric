@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Message from '../../components/Message/Message';
 
 function Login() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login, signed } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [mensagem, setMensagem] = useState(location.state?.mensagem || '');
 
     useEffect(() => {
         if (signed) {
@@ -20,6 +22,7 @@ function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setMensagem('');
 
         const res = await login(email, password);
 
@@ -35,6 +38,7 @@ function Login() {
             <div className="max-width-500 mx-auto border-grey p-4">
                 <h2 className="fw-bold text-uppercase mb-4 text-black">Entrar na Conta</h2>
 
+                <Message tipo="sucesso" texto={mensagem} className="mb-3" />
                 <Message tipo="erro" texto={error} className="mb-3" />
 
                 <form onSubmit={handleSubmit}>

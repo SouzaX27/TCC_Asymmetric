@@ -19,6 +19,7 @@ import Payment from './pages/Payment/Payment';
 import Confirmation from './pages/Confirmation/Confirmation';
 import Orders from './pages/Orders/Orders';
 import Account from './pages/Account/Account';
+import LegalDocument from './pages/Legal/LegalDocument';
 
 function App() {
     return (
@@ -38,6 +39,8 @@ function App() {
                             <Route path="/produtos/:slug" element={<ProductDetails />} />
                             <Route path="/colecoes/:slug" element={<Collections />} />
                             <Route path="/contato" element={<Contact />} />
+                            <Route path="/termos-de-uso" element={<LegalDocument tipo="termos" />} />
+                            <Route path="/politica-de-privacidade" element={<LegalDocument tipo="privacidade" />} />
                         </Route>
 
                         <Route element={<SimpleLayout />}>

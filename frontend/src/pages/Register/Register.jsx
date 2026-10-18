@@ -11,6 +11,7 @@ function Register() {
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [aceitaTermos, setAceitaTermos] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
@@ -23,15 +24,23 @@ function Register() {
         e.preventDefault();
         setError('');
 
-        if (password.length < 6) {
-            setError('A senha deve ter pelo menos 6 caracteres.');
+        if (!aceitaTermos) {
+            setError('Leia e aceite os Termos de Uso e a Política de Privacidade para continuar.');
             return;
         }
 
-        const res = await register(name, phone, email, password);
+        if (password.length < 8) {
+            setError('A senha deve ter pelo menos 8 caracteres.');
+            return;
+        }
+
+        const res = await register(name, phone, email, password, aceitaTermos);
 
         if (res.success) {
-            navigate('/minha-conta', { replace: true });
+            navigate('/login', {
+                replace: true,
+                state: { mensagem: 'Conta criada. Entre com seu e-mail e senha.' }
+            });
         } else {
             setError(res.message);
         }
@@ -89,9 +98,30 @@ function Register() {
                             className="form-control fs-5 border-grey rounded-0"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Mínimo 6 caracteres"
+                            placeholder="Mínimo 8 caracteres"
+                            minLength={8}
                             required
                         />
+                    </div>
+
+                    <div className="mb-4">
+                        <div className="form-check">
+                            <input
+                                id="aceita-termos"
+                                type="checkbox"
+                                className="form-check-input"
+                                checked={aceitaTermos}
+                                required
+                                onChange={(e) => {
+                                    setAceitaTermos(e.target.checked);
+                                    setError('');
+                                }}
+                                aria-describedby="texto-aceite-termos"
+                            />
+                            <label id="texto-aceite-termos" htmlFor="aceita-termos" className="form-check-label">
+                                Li e aceito os <Link to="/termos-de-uso" target="_blank" rel="noreferrer">Termos de Uso</Link> e a <Link to="/politica-de-privacidade" target="_blank" rel="noreferrer">Política de Privacidade</Link>.
+                            </label>
+                        </div>
                     </div>
 
                     <button type="submit" className="button-1 w-100 py-3 fw-bold text-uppercase fs-5 border-0">

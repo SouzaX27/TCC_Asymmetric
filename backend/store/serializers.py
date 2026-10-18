@@ -2,11 +2,11 @@ import re
 from decimal import Decimal
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from django.contrib.auth.models import User
 from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core import signing
+from django.utils import timezone
 from .models import Produto, VariacaoProduto, Cliente, Colecao, Pedido, ItemPedido, Estoque, Cupom, ImagemProduto
 
 class VariacaoProdutoSerializer(serializers.ModelSerializer):
@@ -39,15 +39,20 @@ class ProdutoSerializer(serializers.ModelSerializer):
 
 class RegistrarClienteSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True, required=True)
-    password = serializers.CharField(write_only=True, required=True, min_length=6)
+    password = serializers.CharField(write_only=True, required=True, min_length=8, trim_whitespace=False)
+    aceita_termos = serializers.BooleanField(write_only=True, required=True)
+
+    VERSAO_TERMOS = '1.0'
+    VERSAO_PRIVACIDADE = '1.0'
 
     class Meta:
         model = Cliente
-        fields = ['email', 'password', 'nome', 'telefone']
+        fields = ['email', 'password', 'nome', 'telefone', 'aceita_termos']
 
     # valida se o email já existe
     def validate_email(self, value):
-        if User.objects.filter(username=value).exists():
+        value = value.strip().lower()
+        if User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError("Este e-mail já está cadastrado.")
         return value
 
@@ -69,23 +74,41 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
 
         return apenas_numeros
 
+    def validate(self, attrs):
+        if not attrs.get('aceita_termos'):
+            raise serializers.ValidationError({
+                'aceita_termos': 'É necessário aceitar os Termos de Uso e a Política de Privacidade.'
+            })
+
+        usuario = User(username=attrs['email'], email=attrs['email'])
+        try:
+            validate_password(attrs['password'], user=usuario)
+        except DjangoValidationError as erro:
+            raise serializers.ValidationError({'password': list(erro.messages)})
+        return attrs
+
     def create(self, validated_data):
         email = validated_data.pop('email')
         password = validated_data.pop('password')
         nome = validated_data.pop('nome')
         telefone = validated_data.pop('telefone')
+        validated_data.pop('aceita_termos')
 
-        usuario = User.objects.create_user(
-            username=email,
-            email=email,
-            password=password
-        )
+        with transaction.atomic():
+            usuario = User.objects.create_user(
+                username=email,
+                email=email,
+                password=password
+            )
 
-        cliente = Cliente.objects.create(
-            user=usuario,
-            nome=nome,
-            telefone=telefone
-        )
+            cliente = Cliente.objects.create(
+                user=usuario,
+                nome=nome,
+                telefone=telefone,
+                termos_aceitos_em=timezone.now(),
+                versao_termos_aceita=self.VERSAO_TERMOS,
+                versao_privacidade_aceita=self.VERSAO_PRIVACIDADE,
+            )
 
         return cliente
 
@@ -95,7 +118,8 @@ class ClientePerfilSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cliente
-        fields = ['id_cliente', 'email', 'nome', 'telefone']
+        fields = ['id_cliente', 'email', 'nome', 'telefone', 'pontos']
+        read_only_fields = ['id_cliente', 'email', 'pontos']
 
     def validate_telefone(self, value):
         if not value:

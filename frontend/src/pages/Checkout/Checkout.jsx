@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Spinner } from 'react-bootstrap';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Message from '../../components/Message/Message';
 
 function Checkout() {
     const navigate = useNavigate();
-    const { cart, cartTotal } = useCart();
+    const { cart, cartTotal, cartLoading, cartError } = useCart();
+    const { user, signed, loading: authLoading } = useAuth();
 
     const [formData, setFormData] = useState(() => {
         const dadosSalvos = sessionStorage.getItem('checkout_formData');
@@ -32,6 +35,17 @@ function Checkout() {
     const [mensagemCupom, setMensagemCupom] = useState({ tipo: '', texto: '' });
     const [mensagemCep, setMensagemCep] = useState({ tipo: '', texto: '' });
     const [mensagemGeral, setMensagemGeral] = useState({ tipo: '', texto: '' });
+
+    useEffect(() => {
+        if (authLoading || !signed || !user) return;
+
+        setFormData((dadosAtuais) => ({
+            ...dadosAtuais,
+            nome: user.name || dadosAtuais.nome,
+            email: user.email || dadosAtuais.email,
+            telefone: user.phone || dadosAtuais.telefone
+        }));
+    }, [authLoading, signed, user]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -170,6 +184,11 @@ function Checkout() {
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        if (authLoading) {
+            setMensagemGeral({ tipo: 'aviso', texto: 'Aguarde a verificação da sua sessão.' });
+            return;
+        }
+
         if (cart.length === 0) {
             setMensagemGeral({ tipo: 'erro', texto: 'Seu carrinho está vazio!' });
             return;
@@ -225,9 +244,19 @@ function Checkout() {
         navigate('/confirmacao');
     };
 
+    if (cartLoading || authLoading) {
+        return (
+            <div className="container py-5 text-center my-5">
+                <Spinner animation="border" variant="dark" />
+                <p className="text-muted mt-3">Preparando checkout...</p>
+            </div>
+        );
+    }
+
     if (cart.length === 0) {
         return (
             <div className="container mt-5 pt-5 text-center">
+                <Message tipo="erro" texto={cartError} className="mb-3" />
                 <div className="max-width-600 mx-auto">
                     <h2 className="fw-bold text-uppercase mb-3">Seu carrinho está vazio</h2>
                     <p className="text-muted mb-4">Adicione alguns produtos para continuar com o checkout.</p>
@@ -252,10 +281,11 @@ function Checkout() {
                                 <label className="form-label fs-5">Nome Completo</label>
                                 <input
                                     type="text"
-                                    className="form-control fs-5 border-grey rounded-0"
+                                    className={`form-control fs-5 border-grey rounded-0 ${signed ? 'bg-light' : ''}`}
                                     name="nome"
                                     value={formData.nome}
                                     onChange={handleChange}
+                                    readOnly={signed}
                                     required
                                 />
                             </div>
@@ -263,10 +293,11 @@ function Checkout() {
                                 <label className="form-label fs-5">E-mail</label>
                                 <input
                                     type="email"
-                                    className="form-control fs-5 border-grey rounded-0"
+                                    className={`form-control fs-5 border-grey rounded-0 ${signed ? 'bg-light' : ''}`}
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
+                                    readOnly={signed}
                                     required
                                 />
                             </div>
@@ -274,14 +305,16 @@ function Checkout() {
                                 <label className="form-label fs-5">Telefone / WhatsApp</label>
                                 <input
                                     type="tel"
-                                    className="form-control fs-5 border-grey rounded-0"
+                                    className={`form-control fs-5 border-grey rounded-0 ${signed ? 'bg-light' : ''}`}
                                     name="telefone"
                                     value={formData.telefone}
                                     onChange={handleChange}
+                                    readOnly={signed}
                                     required
                                 />
                             </div>
                         </div>
+                        {signed && <p className="small text-muted mt-2">Dados preenchidos pela sua conta. Para alterá-los, acesse Minha Conta.</p>}
 
                         <h4 className="mt-4 mb-3 fs-3 fw-bold">Endereço de Entrega</h4>
                         <div className="row g-3">
@@ -440,8 +473,8 @@ function Checkout() {
                             </div>
                         </div>
 
-                        <h4 className="mt-3 mb-2 fs-3 fw-bold">Revisão do pedido</h4>
-                        <p className="text-muted">Você poderá revisar os dados antes de gerar o pagamento demonstrativo.</p>
+                        {/* <h4 className="mt-3 mb-2 fs-3 fw-bold">Revisão do pedido</h4>
+                        <p className="text-muted">Você poderá revisar os dados antes de gerar o pagamento demonstrativo.</p> */}
 
                         <div className="d-flex justify-content-between fs-3 fw-bold mb-4 border-top pt-3">
                             <span>Total:</span>

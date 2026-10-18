@@ -1,20 +1,77 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Modal from '../../components/Modal/Modal';
+import Message from '../../components/Message/Message';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { Spinner } from 'react-bootstrap';
 
 function Orders() {
+    const navigate = useNavigate();
+    const { signed, loading: authLoading } = useAuth();
     const [pedidos, setPedidos] = useState([]);
     const [pedidoRastreio, setPedidoRastreio] = useState(null);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState('');
 
     useEffect(() => {
-        // Carrega os pedidos salvos no localStorage (ordenados do mais recente ao mais antigo)
-        const historico = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
-        setPedidos(historico);
-    }, []);
+        if (authLoading) return undefined;
+        if (!signed) {
+            navigate('/login', { replace: true });
+            return undefined;
+        }
+
+        let ativo = true;
+        api.get('pedidos/')
+            .then((resposta) => {
+                if (!ativo) return;
+                const lista = Array.isArray(resposta.data) ? resposta.data : resposta.data.results || [];
+                setPedidos(lista.map((pedido) => ({
+                    id: `#ASMM-${pedido.id_pedido}`,
+                    data: new Date(pedido.data_pedido).toLocaleDateString('pt-BR'),
+                    status: pedido.status,
+                    statusColor: pedido.status.toLowerCase().includes('aprovado') ? 'bg-success' : 'bg-warning text-dark',
+                    cliente: {
+                        nome: pedido.nome_comprador,
+                        email: pedido.email_comprador,
+                        cidade: pedido.cidade_entrega,
+                        estado: pedido.estado_entrega
+                    },
+                    frete: { nome: pedido.servico_frete_nome },
+                    totalGeral: Number(pedido.valor_final)
+                })));
+                setErro('');
+            })
+            .catch((error) => {
+                if (!ativo) return;
+                if (error.response?.status === 401) {
+                    navigate('/login', { replace: true });
+                } else {
+                    setErro('Não foi possível carregar seus pedidos. Tente novamente.');
+                }
+            })
+            .finally(() => {
+                if (ativo) setCarregando(false);
+            });
+
+        return () => {
+            ativo = false;
+        };
+    }, [authLoading, navigate, signed]);
+
+    if (authLoading || carregando) {
+        return (
+            <div className="container py-5 text-center my-5">
+                <Spinner animation="border" variant="dark" />
+                <p className="text-muted mt-3">Carregando pedidos...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="container my-5 pt-5">
             <h1 className="fw-bold text-black text-uppercase mb-4 pb-2">Meus Pedidos</h1>
+            <Message tipo="erro" texto={erro} className="mb-3" />
 
             {pedidos.length === 0 ? (
                 <div className="border-grey p-5 text-center my-4">

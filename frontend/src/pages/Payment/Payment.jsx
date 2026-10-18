@@ -22,29 +22,6 @@ function registrarPedidoAprovado(idPedido) {
     sessionStorage.removeItem('checkout_payment_token');
     sessionStorage.removeItem('checkout_order_payload');
     sessionStorage.removeItem('checkout_formData');
-
-    let historico = [];
-    try {
-        historico = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
-    } catch {
-        historico = [];
-    }
-
-    if (!historico.some((pedidoSalvo) => pedidoSalvo.id === pedido.codigoPedido)) {
-        historico.unshift({
-            id: pedido.codigoPedido,
-            data: new Date().toLocaleDateString('pt-BR'),
-            status: 'Pagamento Aprovado (Demo)',
-            statusColor: 'bg-success',
-            cliente: pedido.cliente,
-            frete: pedido.frete,
-            subtotal: pedido.subtotal,
-            totalGeral: pedido.totalGeral,
-            itens: pedido.itens
-        });
-        localStorage.setItem('meus_pedidos', JSON.stringify(historico));
-    }
-
     return pedido;
 }
 

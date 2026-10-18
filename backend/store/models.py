@@ -23,6 +23,9 @@ class Cliente(models.Model):
     telefone = models.CharField(max_length=255)
     nome = models.CharField(max_length=255)
     pontos = models.IntegerField(default=0)
+    termos_aceitos_em = models.DateTimeField(null=True, blank=True)
+    versao_termos_aceita = models.CharField(max_length=20, blank=True)
+    versao_privacidade_aceita = models.CharField(max_length=20, blank=True)
 
     def __str__(self):
         return self.nome
