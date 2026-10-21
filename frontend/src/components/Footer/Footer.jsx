@@ -22,7 +22,10 @@ function Footer() {
                                 <Nav.Link href="/contato" className="p-0 fs-5 text-secondary hover-light">Entre em Contato</Nav.Link>
                             </Nav.Item>
                             <Nav.Item className="mb-2">
-                                <Nav.Link href="#" className="p-0 fs-5 text-secondary hover-light">Termos de Uso e Política de Privacidade</Nav.Link>
+                                <Nav.Link href="/termos-de-uso" className="p-0 fs-5 text-secondary hover-light">Termos de Uso</Nav.Link>
+                            </Nav.Item>
+                            <Nav.Item className="mb-2">
+                                <Nav.Link href="/politica-de-privacidade" className="p-0 fs-5 text-secondary hover-light">Política de Privacidade</Nav.Link>
                             </Nav.Item>
                         </Nav>
                     </Col>
