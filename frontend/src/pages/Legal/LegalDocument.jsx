@@ -72,7 +72,7 @@ function LegalDocument({ tipo }) {
                     </section>
                 ))}
                 <Link to="/cadastro" className="button-2 d-inline-block px-4 py-2 fw-bold text-uppercase text-decoration-none">
-                    Voltar ao cadastro
+                    Voltar
                 </Link>
             </article>
         </main>

@@ -48,7 +48,7 @@ function Account() {
                         </div>
                     </div>
 
-                    <div className="col-md-6">
+                    {/* <div className="col-md-6">
                         <div className="border-grey p-4 h-100">
                             <div className="row g-3 ">
                                 <div className="col-12 col-md-6">
@@ -63,7 +63,7 @@ function Account() {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
 
                     <div className="col-md-6">
                         <div className="border-grey p-4 h-100 d-flex flex-column justify-content-between">
