@@ -8,7 +8,7 @@ import Message from '../../components/Message/Message';
 
 function Checkout() {
     const navigate = useNavigate();
-    const { cart, cartTotal, cartLoading, cartError } = useCart();
+    const { cart, cartTotal, cartLoading, cartError, validateCartStock } = useCart();
     const { user, signed, loading: authLoading } = useAuth();
 
     const [formData, setFormData] = useState(() => {
@@ -181,7 +181,7 @@ function Checkout() {
     const valorFrete = freteSelecionado ? Number(freteSelecionado.valor || 0) : 0;
     const totalComFrete = Math.max(0, cartTotal - desconto) + valorFrete;
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (authLoading) {
@@ -205,6 +205,12 @@ function Checkout() {
         }));
         if (itens.some((item) => !item.variacao_produto)) {
             setMensagemGeral({ tipo: 'erro', texto: 'Um item do carrinho não possui uma variação válida. Remova-o e adicione o produto novamente.' });
+            return;
+        }
+
+        const validacaoEstoque = await validateCartStock();
+        if (!validacaoEstoque.valid) {
+            setMensagemGeral({ tipo: 'erro', texto: validacaoEstoque.message });
             return;
         }
 

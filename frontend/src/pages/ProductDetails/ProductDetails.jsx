@@ -80,10 +80,14 @@ function ProductDetails() {
             return;
         }
 
-        addToCart(produtoData, selectedVariation);
-        setCartMessage({ tipo: 'sucesso', texto: 'Adicionado ao carrinho.' });
-        setSelectedSize('');
-        setSelectedVariation(null);
+        const resultado = addToCart(produtoData, selectedVariation);
+        if (resultado.success) {
+            setCartMessage({ tipo: 'sucesso', texto: 'Adicionado ao carrinho.' });
+            setSelectedSize('');
+            setSelectedVariation(null);
+        } else {
+            setCartMessage({ tipo: 'erro', texto: resultado.message });
+        }
     };
 
     return (
@@ -121,16 +125,19 @@ function ProductDetails() {
                             <h5 className="fw-bold text-uppercase text-grey fs-5 mb-3">Tamanho</h5>
                             <div className="d-flex flex-wrap gap-2">
                                 {produtoData.variacoes && produtoData.variacoes.map((variacao) => {
-                                    const isEsgotado = variacao.estoque_atual <= 0;
+                                    const estoqueAtual = Number(variacao.estoque_atual);
+                                    const isEsgotado = !Number.isFinite(estoqueAtual) || estoqueAtual <= 0;
 
                                     return (
                                         <button
                                             key={variacao.id_variacao}
                                             type="button"
                                             disabled={isEsgotado}
+                                            aria-label={`${variacao.tamanho}${isEsgotado ? ', esgotado' : ''}`}
+                                            title={isEsgotado ? 'Tamanho indisponível' : undefined}
                                             className={`button-2 fs-5 flex-fill py-1 size-btn fw-semibold 
                                                 ${selectedSize === variacao.tamanho ? 'active-size' : ''} 
-                                                ${isEsgotado ? 'opacity-50 text-muted bg-light border-0' : ''}`}
+                                                ${isEsgotado ? 'size-btn-unavailable' : ''}`}
                                             onClick={() => {
                                                 if (!isEsgotado) {
                                                     setSelectedSize(variacao.tamanho);
@@ -139,7 +146,8 @@ function ProductDetails() {
                                                 }
                                             }}
                                         >
-                                            {variacao.tamanho} {isEsgotado && <span className="small d-block">(Esgotado)</span>}
+                                            {variacao.tamanho}
+                                            {isEsgotado && <span className="size-btn-status small d-block">Esgotado</span>}
                                         </button>
                                     );
                                 })}
