@@ -78,11 +78,21 @@ function Cart() {
                                                     type="button"
                                                     className="btn btn-sm btn-light px-2 py-0 border-0 rounded-0"
                                                     onClick={() => increaseQuantity(item.id_variacao || item.id, item.tamanho)}
+                                                    disabled={
+                                                        !Number.isFinite(item.estoque_atual)
+                                                        || item.quantidade >= item.estoque_atual
+                                                    }
+                                                    aria-label={`Aumentar quantidade de ${item.nome}`}
                                                 >
                                                     +
                                                 </button>
                                             </div>
                                         </div>
+                                        {/* <p className="small text-muted mt-1 mb-0">
+                                            {Number.isFinite(item.estoque_atual)
+                                                ? `${item.estoque_atual} unidade(s) disponível(is)`
+                                                : 'Estoque não confirmado'}
+                                        </p> */}
                                     </Col>
 
                                     {/* Preço total do item (Preço x Quantidade) */}

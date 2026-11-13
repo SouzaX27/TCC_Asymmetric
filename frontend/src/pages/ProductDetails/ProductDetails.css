@@ -1,5 +1,27 @@
 
 
+.size-btn {
+  min-width: 0;
+}
+
+.size-btn-unavailable,
+.size-btn-unavailable:hover,
+.size-btn-unavailable:focus {
+  background-color: #e9ecef !important;
+  border: 1px dashed #6c757d !important;
+  color: #495057 !important;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.size-btn-unavailable .size-btn-status {
+  color: #6c757d;
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
 
 .product-card-hover .related-img {
   transition: transform 0.3s ease;
