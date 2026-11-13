@@ -14,8 +14,11 @@ from .models import (
 )
 
 
+admin.site.site_header = 'Painel Adminstrativo da Asymmetric'
 
+admin.site.site_title = 'Adminstração Asymmetric'
 
+admin.site.index_title = 'Adminstração Asymmetric'
 
 class VariacaoProdutoInline(admin.TabularInline):
     model = VariacaoProduto

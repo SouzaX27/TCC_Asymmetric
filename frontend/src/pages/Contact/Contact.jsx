@@ -16,7 +16,6 @@ function Contact() {
         // Captura os dados do formulário automaticamente
         const formData = new FormData(e.target);
         
-        // 🛠️ COLE AQUI A SUA ACCESS KEY QUE O SITE GEROU:
         formData.append("access_key", import.meta.env.VITE_WEB3FORMS_KEY);
 
         try {
@@ -29,7 +28,7 @@ function Contact() {
 
             if (data.success) {
                 setSubmitSuccess(true);
-                e.target.reset(); // Limpa os campos após enviar
+                e.target.reset();
             } else {
                 setSubmitSuccess(false);
             }

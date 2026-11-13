@@ -1,10 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-from .views import ProdutoViewSet, RegistrarClienteView, MeView, ColecaoViewSet, PedidoViewSet, CupomViewSet, CalcularFreteView
+from .views import ProdutoViewSet, RegistrarClienteView, MeView, ColecaoViewSet, PedidoViewSet, CupomViewSet, CalcularFreteView, CriarPagamentoDemonstracaoView, PagamentoDemonstracaoView, LoginClienteView, AtualizarTokenClienteView, LogoutClienteView
 
 router = DefaultRouter()
 router.register(r'produtos', ProdutoViewSet, basename='produto')
@@ -17,10 +13,14 @@ urlpatterns = [
     path('usuarios/registrar/', RegistrarClienteView.as_view(), name='registrar_cliente'),
 
     path('frete/calcular/', CalcularFreteView.as_view(), name='calcular-frete'),
+    path('pagamentos-demo/', CriarPagamentoDemonstracaoView.as_view(), name='criar-pagamento-demo'),
+    path('pagamentos-demo/<uuid:token>/', PagamentoDemonstracaoView.as_view(), name='pagamento-demo'),
+    path('pagamentos-demo/<uuid:token>/confirmar/', PagamentoDemonstracaoView.as_view(), name='confirmar-pagamento-demo'),
 
     # Rotas de Autenticação JWT
-    path('usuarios/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('usuarios/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('usuarios/login/', LoginClienteView.as_view(), name='token_obtain_pair'),
+    path('usuarios/token/refresh/', AtualizarTokenClienteView.as_view(), name='token_refresh'),
+    path('usuarios/logout/', LogoutClienteView.as_view(), name='logout_cliente'),
 
     # Rota protegida perfil
     path('usuarios/me/', MeView.as_view(), name='usuario_me'),

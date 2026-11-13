@@ -5,20 +5,20 @@ import './Account.css'
 
 function Account() {
     const navigate = useNavigate();
-    const { user, signed, logout } = useAuth();
+    const { user, signed, loading, logout } = useAuth();
 
     useEffect(() => {
-        if (!signed) {
+        if (!loading && !signed) {
             navigate('/login', { replace: true });
         }
-    }, [signed, navigate]);
+    }, [loading, signed, navigate]);
 
     const handleLogout = () => {
         logout();
         navigate('/inicio', { replace: true });
     };
 
-    if (!user) return null;
+    if (loading || !user) return null;
 
     return (
         <div className="container mt-3 mb-5 pt-5">
@@ -48,7 +48,7 @@ function Account() {
                         </div>
                     </div>
 
-                    <div className="col-md-6">
+                    {/* <div className="col-md-6">
                         <div className="border-grey p-4 h-100">
                             <div className="row g-3 ">
                                 <div className="col-12 col-md-6">
@@ -58,12 +58,12 @@ function Account() {
 
                                 <div className="col-12 col-md-6 d-flex justify-content-center">
                                     <div className="counter-points d-flex justify-content-center align-items-center">
-                                        <span className="font-my-account text-white">7</span>
+                                        <span className="font-my-account text-white">{user.points ?? 0}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
 
                     <div className="col-md-6">
                         <div className="border-grey p-4 h-100 d-flex flex-column justify-content-between">

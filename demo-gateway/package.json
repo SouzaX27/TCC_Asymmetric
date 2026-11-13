@@ -1,0 +1,12 @@
+{
+  "name": "asymmetric-demo-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "axios": "^1.20.0"
+  }
+}

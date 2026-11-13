@@ -1,12 +1,21 @@
-function Message({ tipo = 'sucesso', texto }) {
+import { CloseButton } from 'react-bootstrap';
+import './Message.css';
+
+function Message({ tipo = 'sucesso', texto, className = '', onClose }) {
     if (!texto) return null;
 
-    const corTexto = tipo === 'sucesso' ? 'text-success' : 'text-danger';
+    const variantes = {
+        sucesso: 'message-success',
+        aviso: 'message-warning',
+        erro: 'message-error'
+    };
+    const role = tipo === 'erro' ? 'alert' : 'status';
 
     return (
-        <small className={`mt-2 d-block fw-semibold ${corTexto}`}>
-            {texto}
-        </small>
+        <div className={`message-inline ${variantes[tipo] || variantes.erro} ${className}`} role={role} aria-live="polite">
+            <span>{texto}</span>
+            {onClose && <CloseButton aria-label="Fechar mensagem" onClick={onClose} />}
+        </div>
     );
 }
 

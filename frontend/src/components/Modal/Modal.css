@@ -1,0 +1,14 @@
+.site-modal .modal-content {
+    border: 1px solid var(--cinza, #7e7e7e);
+    border-radius: 0;
+    box-shadow: 0 12px 40px rgb(0 0 0 / 18%);
+}
+
+.site-modal .modal-header,
+.site-modal .modal-footer {
+    border-color: var(--cinza, #7e7e7e);
+}
+
+.site-modal .modal-header .btn-close {
+    border-radius: 0;
+}

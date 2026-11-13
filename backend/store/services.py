@@ -1,6 +1,40 @@
 import requests
 from django.conf import settings
 
+
+def criar_pagamento_gateway_demo(valor_total, referencia):
+    if not settings.URL_GATEWAY_DEMO or not settings.SEGREDO_GATEWAY_DEMO:
+        return None, 'Gateway demonstrativo não configurado.'
+
+    try:
+        response = requests.post(
+            f'{settings.URL_GATEWAY_DEMO}/api/pagamentos',
+            json={'valor': str(valor_total), 'referencia': referencia},
+            headers={'Authorization': f'Bearer {settings.SEGREDO_GATEWAY_DEMO}'},
+            timeout=5
+        )
+        response.raise_for_status()
+        dados = response.json()
+        if not dados.get('id_pagamento') or not dados.get('url_checkout'):
+            return None, 'Resposta inválida do gateway demonstrativo.'
+        return dados, None
+    except (requests.RequestException, ValueError):
+        return None, 'Gateway demonstrativo indisponível.'
+
+
+def consultar_pagamento_gateway_demo(id_pagamento_gateway):
+    try:
+        response = requests.get(
+            f'{settings.URL_GATEWAY_DEMO}/api/pagamentos/{id_pagamento_gateway}',
+            headers={'Authorization': f'Bearer {settings.SEGREDO_GATEWAY_DEMO}'},
+            timeout=3
+        )
+        response.raise_for_status()
+        return response.json(), None
+    except (requests.RequestException, ValueError):
+        return None, 'Gateway demonstrativo indisponível.'
+
+
 def calcular_frete_melhor_envio(cep_destino, itens_com_objetos):
     """Consome a API do Melhor Envio e retorna as opções de frete disponíveis."""
     token = settings.MELHOR_ENVIO_TOKEN
@@ -17,7 +51,7 @@ def calcular_frete_melhor_envio(cep_destino, itens_com_objetos):
         'User-Agent': 'ASYMMETRIC (suporteasymmetric@gmail.com)'
     }
 
-    products_payload = []
+    produtos_payload = []
     for item in itens_com_objetos:
         variacao = item['variacao_obj']
         quantidade = item['quantidade']
@@ -29,7 +63,7 @@ def calcular_frete_melhor_envio(cep_destino, itens_com_objetos):
         comprimento = float(getattr(variacao.produto, 'comprimento', 25))
         preco_unitario = float(variacao.produto.preco)
 
-        products_payload.append({
+        produtos_payload.append({
             "id": str(variacao.id_variacao if hasattr(variacao, 'id_variacao') else variacao.id),
             "width": largura,
             "height": altura,
@@ -39,19 +73,19 @@ def calcular_frete_melhor_envio(cep_destino, itens_com_objetos):
             "quantity": quantidade
         })
 
-    payload = {
+    dados_envio = {
         "from": {
             "postal_code": cep_origem
         },
         "to": {
             "postal_code": cep_destino
         },
-        "products": products_payload
+        "products": produtos_payload
     }
 
     try:
         # Timeout de 5s para não prender threads da aplicação
-        response = requests.post(url, json=payload, headers=headers, timeout=5)
+        response = requests.post(url, json=dados_envio, headers=headers, timeout=5)
         
         if response.status_code != 200:
             return None, f"Erro na consulta de frete no serviço externo (HTTP {response.status_code})."

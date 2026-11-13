@@ -3,14 +3,27 @@ import { Container, Row, Col, ListGroup, Card } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import Button from '../../components/Button/Button';
+import { getMediaUrl } from '../../services/api';
+import Message from '../../components/Message/Message';
+import Spinner from 'react-bootstrap/Spinner';
 
 function Cart() {
-    const { cart, removeFromCart, increaseQuantity, decreaseQuantity, cartTotal } = useCart();
+    const { cart, removeFromCart, increaseQuantity, decreaseQuantity, cartTotal, cartLoading, cartError } = useCart();
+
+    if (cartLoading) {
+        return (
+            <Container className="py-5 text-center my-5">
+                <Spinner animation="border" variant="dark" />
+                <p className="text-muted mt-3">Atualizando carrinho...</p>
+            </Container>
+        );
+    }
 
     // Se o carrinho estiver vazio, exibe uma tela amigável para o usuário voltar à loja
     if (cart.length === 0) {
         return (
             <Container className="py-5 text-center d-flex flex-column align-items-center justify-content-center mt-5">
+                <Message tipo="erro" texto={cartError} className="mb-3" />
                 <h2 className="fw-bold text-uppercase mb-3">Seu carrinho está vazio</h2>
                 <p className="text-muted mb-4">Que tal dar uma olhada nos nossos produtos?</p>
                 <Link to="/produtos" className="button-1 text-uppercase px-4 py-3 fw-bold">
@@ -22,6 +35,7 @@ function Cart() {
 
     return (
         <Container className="py-5 min-vh-100 cart-page">
+            <Message tipo="erro" texto={cartError} className="mb-3" />
             <h1 className="fw-bold text-black text-uppercase mb-4 border-bottom pb-3">Seu Carrinho</h1>
 
             <Row className="g-4">
@@ -29,16 +43,12 @@ function Cart() {
                 <Col lg={8}>
                     <ListGroup variant="flush" className="border-bottom border-top">
                         {cart.map((item) => (
-                            <ListGroup.Item key={`${item.id}-${item.tamanho}`} className="py-4 px-0">
+                            <ListGroup.Item key={`${item.id_variacao || item.id}-${item.tamanho}`} className="py-4 px-0">
                                 <Row className="align-items-center gy-3">
                                     {/* Imagem do Produto */}
                                     <Col xs={4} sm={2}>
                                         <img
-                                            src={
-                                                typeof item.imagem === 'string' && item.imagem.startsWith('http')
-                                                    ? item.imagem
-                                                    : (item.imagens?.[0]?.imagem || item.imagens?.[0]?.url || item.imagens?.[0] || '')
-                                            }
+                                            src={getMediaUrl(item.imagem || item.imagens?.[0]?.imagem || item.imagens?.[0]?.url || item.imagens?.[0] || '')}
                                             alt={item.nome}
                                             className="img-fluid ms-2 rounded"
                                             style={{ objectFit: 'cover', maxHeight: '90px', width: '70px' }}
@@ -59,7 +69,7 @@ function Cart() {
                                                 <button
                                                     type="button"
                                                     className="btn btn-sm btn-light px-2 py-0 border-0 rounded-0"
-                                                    onClick={() => decreaseQuantity(item.id, item.tamanho)}
+                                                    onClick={() => decreaseQuantity(item.id_variacao || item.id, item.tamanho)}
                                                 >
                                                     -
                                                 </button>
@@ -67,7 +77,7 @@ function Cart() {
                                                 <button
                                                     type="button"
                                                     className="btn btn-sm btn-light px-2 py-0 border-0 rounded-0"
-                                                    onClick={() => increaseQuantity(item.id, item.tamanho)}
+                                                    onClick={() => increaseQuantity(item.id_variacao || item.id, item.tamanho)}
                                                 >
                                                     +
                                                 </button>
@@ -87,7 +97,7 @@ function Cart() {
                                         <button
                                             type="button"
                                             className="button-2 me-3 text-uppercase small fw-bold tracking-wider"
-                                            onClick={() => removeFromCart(item.id, item.tamanho)}
+                                            onClick={() => removeFromCart(item.id_variacao || item.id, item.tamanho)}
                                         >
                                             Remover
                                         </button>

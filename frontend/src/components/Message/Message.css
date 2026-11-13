@@ -1,0 +1,32 @@
+.message-inline {
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 0;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.message-success {
+    background-color: #d1e7dd;
+    border-color: #a3cfbb;
+    color: #0f5132;
+}
+
+.message-warning {
+    background-color: #fff3cd;
+    border-color: #ffe69c;
+    color: #664d03;
+}
+
+.message-error {
+    background-color: #f8d7da;
+    border-color: #f1aeb5;
+    color: #58151c;
+}
+
+.message-inline .btn-close {
+    flex: 0 0 auto;
+}
