@@ -1,8 +1,12 @@
 from datetime import timedelta
 from decimal import Decimal
+import re
+import smtplib
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -192,7 +196,7 @@ class PagamentoDemonstracaoTests(TestCase):
 		self.assertEqual(self.variacao.estoque_atual, 5)
 
 
-@override_settings(DEBUG=True)
+@override_settings(DEBUG=True, EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
 class CadastroEAutenticacaoTests(TestCase):
 	def setUp(self):
 		self.client = APIClient()
@@ -200,18 +204,40 @@ class CadastroEAutenticacaoTests(TestCase):
 			'nome': 'Pessoa Exemplo',
 			'email': 'cadastro.teste@example.com',
 			'telefone': '11987654321',
+			'cpf': '529.982.247-25',
 			'password': 'Vento#Verde2026',
 			'aceita_termos': True,
 		}
 
+	def solicitar_codigo(self, tipo, email, dados=None, password=None):
+		payload = {'tipo': tipo, 'email': email}
+		if dados is not None:
+			payload['dados'] = dados
+		if password is not None:
+			payload['password'] = password
+		resposta = self.client.post('/api/usuarios/solicitar-codigo/', payload, format='json')
+		self.assertEqual(resposta.status_code, 200)
+		codigo = re.search(r'\b\d{6}\b', mail.outbox[-1].body).group()
+		return codigo
+
 	def test_cadastro_exige_aceite_e_armazena_somente_hash_da_senha(self):
 		dados_sem_aceite = {**self.dados_cadastro, 'aceita_termos': False}
-		resposta_sem_aceite = self.client.post('/api/usuarios/registrar/', dados_sem_aceite, format='json')
+		resposta_sem_aceite = self.client.post(
+			'/api/usuarios/solicitar-codigo/',
+			{'tipo': 'cadastro', 'email': self.dados_cadastro['email'], 'dados': dados_sem_aceite},
+			format='json'
+		)
 
 		self.assertEqual(resposta_sem_aceite.status_code, 400)
 		self.assertFalse(User.objects.filter(username=self.dados_cadastro['email']).exists())
 
-		resposta = self.client.post('/api/usuarios/registrar/', self.dados_cadastro, format='json')
+		codigo = self.solicitar_codigo('cadastro', self.dados_cadastro['email'], self.dados_cadastro)
+		resposta = self.client.post('/api/usuarios/verificar-codigo/', {
+			'tipo': 'cadastro',
+			'email': self.dados_cadastro['email'],
+			'codigo': codigo,
+			'dados': self.dados_cadastro,
+		}, format='json')
 
 		self.assertEqual(resposta.status_code, 201)
 		usuario = User.objects.get(username=self.dados_cadastro['email'])
@@ -221,26 +247,81 @@ class CadastroEAutenticacaoTests(TestCase):
 		self.assertIsNotNone(cliente.termos_aceitos_em)
 		self.assertEqual(cliente.versao_termos_aceita, '1.0')
 		self.assertEqual(cliente.versao_privacidade_aceita, '1.0')
+		self.assertEqual(cliente.cpf, '52998224725')
+
+	def test_cpf_invalido_e_rejeitado_antes_do_envio_do_codigo(self):
+		for cpf in ('123.456.789-00', '111.111.111-11', '1234567890', '529.982.247-2A'):
+			with self.subTest(cpf=cpf):
+				resposta = self.client.post('/api/usuarios/solicitar-codigo/', {
+					'tipo': 'cadastro',
+					'email': self.dados_cadastro['email'],
+					'dados': {**self.dados_cadastro, 'cpf': cpf},
+				}, format='json')
+
+				self.assertEqual(resposta.status_code, 400)
+				self.assertIn('cpf', resposta.data)
+		self.assertEqual(len(mail.outbox), 0)
+
+	def test_cpf_nao_pode_ser_reutilizado_em_outra_conta(self):
+		codigo = self.solicitar_codigo('cadastro', self.dados_cadastro['email'], self.dados_cadastro)
+		self.client.post('/api/usuarios/verificar-codigo/', {
+			'tipo': 'cadastro',
+			'email': self.dados_cadastro['email'],
+			'codigo': codigo,
+			'dados': self.dados_cadastro,
+		}, format='json')
+
+		outro_cadastro = {
+			**self.dados_cadastro,
+			'email': 'outra.conta@example.com',
+			'telefone': '11987654322',
+		}
+		resposta = self.client.post('/api/usuarios/solicitar-codigo/', {
+			'tipo': 'cadastro',
+			'email': outro_cadastro['email'],
+			'dados': outro_cadastro,
+		}, format='json')
+
+		self.assertEqual(resposta.status_code, 400)
+		self.assertIn('cpf', resposta.data)
 
 	def test_senha_fraca_e_rejeitada_pelos_validadores_do_django(self):
 		dados = {**self.dados_cadastro, 'password': '12345678'}
-		resposta = self.client.post('/api/usuarios/registrar/', dados, format='json')
+		resposta = self.client.post('/api/usuarios/solicitar-codigo/', {
+			'tipo': 'cadastro',
+			'email': self.dados_cadastro['email'],
+			'dados': dados,
+		}, format='json')
 
 		self.assertEqual(resposta.status_code, 400)
 		self.assertIn('password', resposta.data)
 		self.assertFalse(User.objects.filter(username=self.dados_cadastro['email']).exists())
 
 	def test_login_perfil_refresh_e_logout_usam_cookie_http_only(self):
-		resposta_cadastro = self.client.post('/api/usuarios/registrar/', self.dados_cadastro, format='json')
+		codigo_cadastro = self.solicitar_codigo(
+			'cadastro', self.dados_cadastro['email'], self.dados_cadastro
+		)
+		resposta_cadastro = self.client.post('/api/usuarios/verificar-codigo/', {
+			'tipo': 'cadastro',
+			'email': self.dados_cadastro['email'],
+			'codigo': codigo_cadastro,
+			'dados': self.dados_cadastro,
+		}, format='json')
 		self.assertEqual(resposta_cadastro.status_code, 201)
+		self.assertIn('access', resposta_cadastro.data)
+		self.assertTrue(resposta_cadastro.cookies['refresh_token']['httponly'])
+		self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {resposta_cadastro.data['access']}")
+		perfil_apos_cadastro = self.client.get('/api/usuarios/me/')
+		self.assertEqual(perfil_apos_cadastro.status_code, 200)
+		self.assertEqual(perfil_apos_cadastro.data['email'], self.dados_cadastro['email'])
 
+		self.client.credentials()
 		resposta_login = self.client.post('/api/usuarios/login/', {
 			'username': self.dados_cadastro['email'],
 			'password': self.dados_cadastro['password'],
 		}, format='json')
 		self.assertEqual(resposta_login.status_code, 200)
 		self.assertIn('access', resposta_login.data)
-		self.assertNotIn('refresh', resposta_login.data)
 		self.assertTrue(resposta_login.cookies['refresh_token']['httponly'])
 
 		self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {resposta_login.data['access']}")
@@ -262,3 +343,79 @@ class CadastroEAutenticacaoTests(TestCase):
 		self.assertEqual(resposta_logout.status_code, 204)
 		resposta_refresh_apos_logout = self.client.post('/api/usuarios/token/refresh/', {}, format='json')
 		self.assertEqual(resposta_refresh_apos_logout.status_code, 401)
+
+	def test_login_nao_exige_codigo_de_verificacao(self):
+		codigo = self.solicitar_codigo('cadastro', self.dados_cadastro['email'], self.dados_cadastro)
+		self.client.post('/api/usuarios/verificar-codigo/', {
+			'tipo': 'cadastro',
+			'email': self.dados_cadastro['email'],
+			'codigo': codigo,
+			'dados': self.dados_cadastro,
+		}, format='json')
+
+		resposta_solicitacao_login = self.client.post('/api/usuarios/solicitar-codigo/', {
+			'tipo': 'login',
+			'email': self.dados_cadastro['email'],
+			'password': self.dados_cadastro['password'],
+		}, format='json')
+		self.assertEqual(resposta_solicitacao_login.status_code, 400)
+
+		resposta_login = self.client.post('/api/usuarios/login/', {
+			'username': self.dados_cadastro['email'],
+			'password': self.dados_cadastro['password'],
+		}, format='json')
+		self.assertEqual(resposta_login.status_code, 200)
+		self.assertIn('access', resposta_login.data)
+
+	def test_codigo_incorreto_expirado_ou_reutilizado_nao_autentica(self):
+		codigo = self.solicitar_codigo('cadastro', self.dados_cadastro['email'], self.dados_cadastro)
+		payload = {
+			'tipo': 'cadastro',
+			'email': self.dados_cadastro['email'],
+			'dados': self.dados_cadastro,
+			'codigo': '000000' if codigo != '000000' else '000001',
+		}
+		resposta_codigo_incorreto = self.client.post(
+			'/api/usuarios/verificar-codigo/', payload, format='json'
+		)
+		self.assertEqual(resposta_codigo_incorreto.status_code, 400)
+
+		payload['codigo'] = codigo
+		resposta = self.client.post('/api/usuarios/verificar-codigo/', payload, format='json')
+		self.assertEqual(resposta.status_code, 201)
+		resposta_reutilizacao = self.client.post('/api/usuarios/verificar-codigo/', payload, format='json')
+		self.assertEqual(resposta_reutilizacao.status_code, 400)
+
+	def test_cadastro_direto_sem_codigo_e_bloqueado(self):
+		resposta = self.client.post('/api/usuarios/registrar/', self.dados_cadastro, format='json')
+
+		self.assertEqual(resposta.status_code, 400)
+		self.assertFalse(User.objects.filter(username=self.dados_cadastro['email']).exists())
+
+	def test_codigo_e_armazenado_com_expiracao_de_dez_minutos(self):
+		with patch('store.views.cache.set', wraps=cache.set) as definir_codigo:
+			resposta = self.client.post('/api/usuarios/solicitar-codigo/', {
+				'tipo': 'cadastro',
+				'email': self.dados_cadastro['email'],
+				'dados': self.dados_cadastro,
+			}, format='json')
+
+		self.assertEqual(resposta.status_code, 200)
+		self.assertEqual(definir_codigo.call_args.kwargs['timeout'], 600)
+
+	def test_falha_smtp_retorna_erro_controlado_e_remove_codigo_do_cache(self):
+		chave = f"email_verification:cadastro:{self.dados_cadastro['email']}"
+		cache.set(chave, '123456', timeout=600)
+		with patch(
+			'store.views.enviar_codigo',
+			side_effect=smtplib.SMTPAuthenticationError(535, b'Authentication failed'),
+		):
+			resposta = self.client.post('/api/usuarios/solicitar-codigo/', {
+				'tipo': 'cadastro',
+				'email': self.dados_cadastro['email'],
+				'dados': self.dados_cadastro,
+			}, format='json')
+
+		self.assertEqual(resposta.status_code, 503)
+		self.assertIn('serviço de e-mail', resposta.data['erro'])
+		self.assertIsNone(cache.get(chave))

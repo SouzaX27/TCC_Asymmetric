@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ProdutoViewSet, RegistrarClienteView, MeView, ColecaoViewSet, PedidoViewSet, CupomViewSet, CalcularFreteView, CriarPagamentoDemonstracaoView, PagamentoDemonstracaoView, LoginClienteView, AtualizarTokenClienteView, LogoutClienteView
+from .views import ProdutoViewSet, RegistrarClienteView, SolicitarCodigoView, VerificarCodigoView, MeView, ColecaoViewSet, PedidoViewSet, CupomViewSet, CalcularFreteView, CriarPagamentoDemonstracaoView, PagamentoDemonstracaoView, LoginClienteView, AtualizarTokenClienteView, LogoutClienteView
 
 router = DefaultRouter()
 router.register(r'produtos', ProdutoViewSet, basename='produto')
@@ -11,6 +11,8 @@ router.register(r'cupons', CupomViewSet, basename='cupom')
 urlpatterns = [
     path('', include(router.urls)),
     path('usuarios/registrar/', RegistrarClienteView.as_view(), name='registrar_cliente'),
+    path('usuarios/solicitar-codigo/', SolicitarCodigoView.as_view(), name='solicitar_codigo'),
+    path('usuarios/verificar-codigo/', VerificarCodigoView.as_view(), name='verificar_codigo'),
 
     path('frete/calcular/', CalcularFreteView.as_view(), name='calcular-frete'),
     path('pagamentos-demo/', CriarPagamentoDemonstracaoView.as_view(), name='criar-pagamento-demo'),

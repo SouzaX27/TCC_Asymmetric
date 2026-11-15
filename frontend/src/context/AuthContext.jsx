@@ -83,37 +83,58 @@ export function AuthProvider({ children }) {
         };
     }, []);
 
-    const register = async (name, phone, email, password, aceitaTermos) => {
+    const solicitarCodigo = async (tipo, email, dados, password) => {
         setAuthError('');
         try {
-            await api.post('usuarios/registrar/', {
-                nome: name,
-                telefone: phone,
-                email,
-                password,
-                aceita_termos: aceitaTermos
+            const resposta = await api.post('usuarios/solicitar-codigo/', {
+                tipo,
+                email: String(email ?? '').trim().toLowerCase(),
+                ...(dados ? { dados } : {}),
+                ...(password ? { password } : {})
             });
-            return { success: true };
+            return { success: true, message: resposta.data.mensagem };
         } catch (error) {
-            const message = getApiErrorMessage(error, 'Não foi possível criar a conta.');
+            const message = getApiErrorMessage(error, 'Não foi possível enviar o código.');
             setAuthError(message);
             return { success: false, message };
         }
     };
-    
+
+    const verificarCodigo = async (tipo, email, codigo, dados) => {
+        setAuthError('');
+        try {
+            const resposta = await api.post('usuarios/verificar-codigo/', {
+                tipo,
+                email: String(email ?? '').trim().toLowerCase(),
+                codigo,
+                ...(dados ? { dados } : {})
+            });
+            if (!resposta.data?.access || !resposta.data?.perfil) {
+                throw new Error('A resposta do cadastro não contém os dados da sessão.');
+            }
+            definirTokenAcesso(resposta.data.access);
+            setUser(mapearPerfil(resposta.data.perfil));
+            return { success: true, message: resposta.data.mensagem };
+        } catch (error) {
+            definirTokenAcesso(null);
+            const message = getApiErrorMessage(error, 'Não foi possível validar o código e criar a conta.');
+            setAuthError(message);
+            return { success: false, message };
+        }
+    };
+
     const login = async (email, password) => {
         setAuthError('');
         try {
-            const respostaLogin = await api.post('usuarios/login/', {
+            const resposta = await api.post('usuarios/login/', {
                 username: String(email ?? '').trim().toLowerCase(),
                 password
             });
-            if (!respostaLogin.data?.access) {
-                throw new Error('A resposta de login não contém um token de acesso.');
+            if (!resposta.data?.access || !resposta.data?.perfil) {
+                throw new Error('A resposta de login não contém os dados da sessão.');
             }
-            definirTokenAcesso(respostaLogin.data.access);
-            const respostaPerfil = await api.get('usuarios/me/');
-            setUser(mapearPerfil(respostaPerfil.data));
+            definirTokenAcesso(resposta.data.access);
+            setUser(mapearPerfil(resposta.data.perfil));
             return { success: true };
         } catch (error) {
             definirTokenAcesso(null);
@@ -144,7 +165,16 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, signed: Boolean(user), login, register, logout, loading, authError }}>
+        <AuthContext.Provider value={{
+            user,
+            signed: Boolean(user),
+            solicitarCodigo,
+            verificarCodigo,
+            login,
+            logout,
+            loading,
+            authError
+        }}>
             {children}
         </AuthContext.Provider>
     );
