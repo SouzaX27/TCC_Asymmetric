@@ -1,22 +1,32 @@
 import { useState } from 'react';
 import { Container, Row, Col, Form } from 'react-bootstrap';
 import Button from '../../components/Button/Button';
+import BackButton from '../../components/BackButton/BackButton';
 
 function Contact() {
     // Estados para gerenciar o envio da API
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(null);
-    console.log("Minha chave:", import.meta.env.VITE_WEB3FORMS_KEY);
+    const [submitError, setSubmitError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const accessKey = import.meta.env.VITE_WEB3FORMS_KEY?.trim();
+        if (!accessKey) {
+            console.error('VITE_WEB3FORMS_KEY não está configurada.');
+            setSubmitError('Formulário temporariamente indisponível. Entre em contato pelo atendimento direto.');
+            setSubmitSuccess(false);
+            return;
+        }
+
         setIsSubmitting(true);
         setSubmitSuccess(null);
+        setSubmitError('');
         
         // Captura os dados do formulário automaticamente
         const formData = new FormData(e.target);
         
-        formData.append("access_key", import.meta.env.VITE_WEB3FORMS_KEY);
+        formData.append("access_key", accessKey);
 
         try {
             const response = await fetch("https://api.web3forms.com/submit", {
@@ -30,10 +40,12 @@ function Contact() {
                 setSubmitSuccess(true);
                 e.target.reset();
             } else {
+                setSubmitError('Ops! Algo deu errado. Tente novamente mais tarde.');
                 setSubmitSuccess(false);
             }
         } catch (error) {
             console.error("Erro ao enviar formulário:", error);
+            setSubmitError('Ops! Algo deu errado. Tente novamente mais tarde.');
             setSubmitSuccess(false);
         } finally {
             setIsSubmitting(false);
@@ -56,7 +68,7 @@ function Contact() {
                         )}
                         {submitSuccess === false && (
                             <div className="alert alert-danger rounded-0 text-uppercase small mb-4">
-                                Ops! Algo deu errado. Tente novamente mais tarde.
+                                {submitError}
                             </div>
                         )}
 
@@ -130,6 +142,9 @@ function Contact() {
                     </Col>
 
                 </Row>
+                <div className="mt-4">
+                    <BackButton />
+                </div>
             </Container>
         </div>
     );

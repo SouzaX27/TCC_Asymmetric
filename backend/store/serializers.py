@@ -39,6 +39,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
 
 class RegistrarClienteSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True, required=True)
+    cpf = serializers.CharField(write_only=True, required=True, max_length=14)
     password = serializers.CharField(write_only=True, required=True, min_length=8, trim_whitespace=False)
     aceita_termos = serializers.BooleanField(write_only=True, required=True)
 
@@ -47,7 +48,7 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cliente
-        fields = ['email', 'password', 'nome', 'telefone', 'aceita_termos']
+        fields = ['email', 'cpf', 'password', 'nome', 'telefone', 'aceita_termos']
 
     # valida se o email já existe
     def validate_email(self, value):
@@ -55,6 +56,25 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
         if User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError("Este e-mail já está cadastrado.")
         return value
+
+    def validate_cpf(self, value):
+        cpf = value.strip()
+        if re.fullmatch(r'\d{3}\.\d{3}\.\d{3}-\d{2}', cpf):
+            cpf = re.sub(r'\D', '', cpf)
+        if not re.fullmatch(r'\d{11}', cpf):
+            raise serializers.ValidationError("Informe um CPF com 11 dígitos.")
+        if cpf == cpf[0] * 11:
+            raise serializers.ValidationError("Informe um CPF válido.")
+
+        soma = sum(int(digito) * peso for digito, peso in zip(cpf[:9], range(10, 1, -1)))
+        primeiro_digito = (soma * 10 % 11) % 10
+        soma = sum(int(digito) * peso for digito, peso in zip(cpf[:10], range(11, 1, -1)))
+        segundo_digito = (soma * 10 % 11) % 10
+        if cpf[-2:] != f'{primeiro_digito}{segundo_digito}':
+            raise serializers.ValidationError("Informe um CPF válido.")
+        if Cliente.objects.filter(cpf=cpf).exists():
+            raise serializers.ValidationError("Este CPF já está cadastrado.")
+        return cpf
 
     # validação do telefone
     def validate_telefone(self, value):
@@ -89,6 +109,7 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         email = validated_data.pop('email')
+        cpf = validated_data.pop('cpf')
         password = validated_data.pop('password')
         nome = validated_data.pop('nome')
         telefone = validated_data.pop('telefone')
@@ -103,6 +124,7 @@ class RegistrarClienteSerializer(serializers.ModelSerializer):
 
             cliente = Cliente.objects.create(
                 user=usuario,
+                cpf=cpf,
                 nome=nome,
                 telefone=telefone,
                 termos_aceitos_em=timezone.now(),

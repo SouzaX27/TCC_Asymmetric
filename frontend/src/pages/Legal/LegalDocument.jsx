@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import BackButton from '../../components/BackButton/BackButton';
 
 const documentos = {
     termos: {
@@ -71,9 +71,7 @@ function LegalDocument({ tipo }) {
                         <p>{secao.texto}</p>
                     </section>
                 ))}
-                <Link to="/cadastro" className="button-2 d-inline-block px-4 py-2 fw-bold text-uppercase text-decoration-none">
-                    Voltar
-                </Link>
+                <BackButton fallbackTo="/cadastro" />
             </article>
         </main>
     );

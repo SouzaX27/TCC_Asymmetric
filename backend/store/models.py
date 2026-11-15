@@ -20,6 +20,7 @@ class Admin(models.Model):
 class Cliente(models.Model):
     id_cliente = models.AutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cliente')
+    cpf = models.CharField(max_length=11, unique=True, null=True, blank=True)
     telefone = models.CharField(max_length=255)
     nome = models.CharField(max_length=255)
     pontos = models.IntegerField(default=0)

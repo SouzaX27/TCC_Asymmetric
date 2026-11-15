@@ -47,6 +47,8 @@ api.interceptors.response.use(undefined, async (error) => {
     const rotaPublica = [
         'usuarios/login/',
         'usuarios/registrar/',
+        'usuarios/solicitar-codigo/',
+        'usuarios/verificar-codigo/',
         'usuarios/token/refresh/',
         'usuarios/logout/'
     ].some((rota) => url.includes(rota));

@@ -1,8 +1,14 @@
 # from django.shortcuts import render
+import secrets
+import logging
+import smtplib
 from decimal import Decimal
 from datetime import timedelta
 from django.conf import settings
+from django.contrib.auth import authenticate
 from django.core import signing
+from django.core.cache import cache
+from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -11,13 +17,56 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status, permissions
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import ProdutoSerializer, RegistrarClienteSerializer, ClientePerfilSerializer, ColecaoSerializer, PedidoSerializer, CalcularFreteInputSerializer, CupomSerializer
 from .services import calcular_frete_melhor_envio, criar_pagamento_gateway_demo, consultar_pagamento_gateway_demo
 from .models import Produto, VariacaoProduto, Colecao, Pedido, Cupom, PagamentoDemonstracao
 
 NOME_COOKIE_ATUALIZACAO = 'refresh_token'
 CAMINHO_COOKIE_ATUALIZACAO = '/api/usuarios/'
+TEMPO_EXPIRACAO_CODIGO = 10 * 60
+logger = logging.getLogger(__name__)
+
+
+def chave_codigo(email, tipo):
+    return f'email_verification:{tipo}:{email}'
+
+
+def enviar_codigo(email, tipo):
+    codigo = f'{secrets.randbelow(1_000_000):06d}'
+    cache.set(chave_codigo(email, tipo), codigo, timeout=TEMPO_EXPIRACAO_CODIGO)
+    enviado = send_mail(
+        'Código de verificação',
+        f'Seu código de verificação é {codigo}. Ele expira em 10 minutos.',
+        settings.DEFAULT_FROM_EMAIL,
+        [email],
+        fail_silently=False,
+    )
+    if not enviado:
+        cache.delete(chave_codigo(email, tipo))
+        return False
+    return True
+
+
+def resposta_com_sessao(usuario, status_code=status.HTTP_200_OK, mensagem=None):
+    refresh = RefreshToken.for_user(usuario)
+    dados = {
+        'access': str(refresh.access_token),
+        'perfil': ClientePerfilSerializer(usuario.cliente).data,
+    }
+    if mensagem:
+        dados['mensagem'] = mensagem
+    resposta = Response(dados, status=status_code)
+    resposta.set_cookie(
+        NOME_COOKIE_ATUALIZACAO,
+        str(refresh),
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite='Lax',
+        path=CAMINHO_COOKIE_ATUALIZACAO,
+    )
+    return resposta
+
 
 class ColecaoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Colecao.objects.filter(ativa=True)
@@ -41,14 +90,104 @@ class RegistrarClienteView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        serializer = RegistrarClienteSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
+        return Response(
+            {'erro': 'Solicite e valide um código de e-mail para concluir o cadastro.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class SolicitarCodigoView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        if not isinstance(request.data, dict):
+            return Response({'erro': 'Informe os dados da solicitação.'}, status=status.HTTP_400_BAD_REQUEST)
+        tipo = request.data.get('tipo')
+        email = request.data.get('email', '')
+        if not isinstance(email, str):
+            return Response({'erro': 'Informe um e-mail válido.'}, status=status.HTTP_400_BAD_REQUEST)
+        email = email.strip().lower()
+        if tipo != 'cadastro' or not email:
             return Response(
-                {"mensagem": "Cliente cadastrado com sucesso!"}, 
-                status=status.HTTP_201_CREATED
+                {'erro': 'A verificação de e-mail está disponível apenas para novos cadastros.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        dados = request.data.get('dados')
+        if not isinstance(dados, dict):
+            return Response({'erro': 'Informe os dados do cadastro.'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = RegistrarClienteSerializer(data=dados)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        email = serializer.validated_data['email']
+
+        try:
+            enviado = enviar_codigo(email, tipo)
+        except (smtplib.SMTPException, OSError) as erro:
+            cache.delete(chave_codigo(email, tipo))
+            logger.warning(
+                'Falha ao enviar código de verificação por e-mail (%s).',
+                type(erro).__name__,
+            )
+            return Response(
+                {'erro': 'O serviço de e-mail está indisponível. Tente novamente mais tarde.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        if not enviado:
+            cache.delete(chave_codigo(email, tipo))
+            return Response(
+                {'erro': 'O serviço de e-mail não aceitou a mensagem. Tente novamente mais tarde.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(
+            {'mensagem': f'Código enviado para {email}.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class VerificarCodigoView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        if not isinstance(request.data, dict):
+            return Response({'erro': 'Informe os dados da verificação.'}, status=status.HTTP_400_BAD_REQUEST)
+        tipo = request.data.get('tipo')
+        email = request.data.get('email', '')
+        codigo = request.data.get('codigo', '')
+        if (
+            tipo != 'cadastro'
+            or not isinstance(email, str)
+            or not isinstance(codigo, str)
+            or not email.strip()
+            or len(codigo) != 6
+            or not codigo.isdigit()
+        ):
+            return Response(
+                {'erro': 'Informe um e-mail, tipo e código válido de 6 dígitos.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        email = email.strip().lower()
+        if cache.get(chave_codigo(email, tipo)) != codigo:
+            return Response(
+                {'erro': 'Código inválido ou expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = RegistrarClienteSerializer(data=request.data.get('dados', {}))
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.validated_data['email'] != email:
+            return Response(
+                {'erro': 'O e-mail do cadastro não corresponde ao e-mail verificado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        cliente = serializer.save()
+        cache.delete(chave_codigo(email, tipo))
+        return resposta_com_sessao(
+            cliente.user,
+            status.HTTP_201_CREATED,
+            mensagem='Cliente cadastrado com sucesso!',
+        )
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -72,23 +211,28 @@ class MeView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginClienteView(TokenObtainPairView):
+class LoginClienteView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        resposta = Response({'access': str(serializer.validated_data['access'])})
-        resposta.set_cookie(
-            NOME_COOKIE_ATUALIZACAO,
-            str(serializer.validated_data['refresh']),
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-            path=CAMINHO_COOKIE_ATUALIZACAO,
+        username = request.data.get('username', request.data.get('email', ''))
+        password = request.data.get('password', '')
+        if not isinstance(username, str) or not isinstance(password, str) or not username or not password:
+            return Response(
+                {'erro': 'Informe seu e-mail e sua senha.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        usuario = authenticate(
+            request,
+            username=username.strip().lower(),
+            password=password,
         )
-        return resposta
+        if usuario is None or not hasattr(usuario, 'cliente'):
+            return Response(
+                {'erro': 'E-mail ou senha incorretos.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return resposta_com_sessao(usuario)
 
 
 class AtualizarTokenClienteView(APIView):
